@@ -75,7 +75,7 @@ class PaperAccount:
         for value, name in ((market_price, "price"), (stop, "stop"), (target, "target")):
             self._positive(value, name)
         fill = market_price * (1 + self.slippage_rate)
-        if not stop < fill < target:
+        if not stop < market_price and fill < target:
             return "SKIP_INVALID_LEVELS"
         if symbol in self.positions or len(self.positions) >= self.max_positions:
             return "SKIP_POSITION_LIMIT"

@@ -1,0 +1,65 @@
+name: PulseCrypto Register Instant Telegram Webhook
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_url:
+        description: 'HTTPS URL of the Cloudflare Worker, without /telegram'
+        required: true
+        type: string
+      confirm:
+        description: 'I deployed the Worker, set its secrets and want to activate the webhook'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  register:
+    if: inputs.confirm == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Register secure Telegram webhook
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          WORKER_URL: ${{ inputs.worker_url }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, re, json
+          from urllib.parse import urlparse
+          from urllib.request import Request, urlopen
+          token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+          secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
+          raw = os.environ.get("WORKER_URL", "").strip().rstrip("/")
+          address = urlparse(raw)
+          if not token or not re.fullmatch(r"[A-Za-z0-9_-]{32,256}", secret):
+              raise SystemExit("Missing bot token or valid webhook secret")
+          if (address.scheme != "https" or not address.hostname or
+              not address.hostname.endswith(".workers.dev") or
+              address.username or address.password or address.port or
+              address.path not in ("", "/") or address.query or address.fragment):
+              raise SystemExit("Enter only the public https://...workers.dev URL")
+          webhook_url = raw + "/telegram"
+          req = Request(
+              "https://api.telegram.org/bot" + token + "/setWebhook",
+              data=json.dumps({
+                  "url": webhook_url, "secret_token": secret,
+                  "allowed_updates": ["message"], "drop_pending_updates": True,
+                  "max_connections": 2
+              }).encode("utf-8"),
+              headers={"Content-Type": "application/json"}, method="POST")
+          try:
+              with urlopen(req, timeout=15) as response:
+                  result = json.load(response)
+          except Exception:
+              raise SystemExit("Webhook registration failed; check configuration") from None
+          if result.get("ok") is not True or result.get("result") is not True:
+              raise SystemExit("Telegram did not confirm webhook registration")
+          print("Telegram webhook registered:", webhook_url)
+          print("No paper trading or backup settings were changed.")
+          PY

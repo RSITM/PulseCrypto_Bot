@@ -69,3 +69,21 @@ test('balance reads the existing simulated ledger without placing orders',async(
     assert.match(m.text,/PAPER BALANCE/);
   }finally{globalThis.fetch=oldFetch}
 });
+
+
+test('missing active production secret bindings give 503 and only print binding names',async()=>{
+  const originalLog=console.error;
+  const recorded=[];
+  console.error=(message)=>recorded.push(String(message));
+  try{
+    const r=await worker.fetch(request(update('/help')),{},);
+    assert.equal(r.status,503);
+    assert.match(await r.text(),/configuration incomplete/);
+    assert.equal(recorded.length,1);
+    assert.match(recorded[0],/TELEGRAM_CHAT_ID/);
+    assert.match(recorded[0],/TELEGRAM_WEBHOOK_SECRET/);
+    assert.doesNotMatch(recorded[0],/test-secret-value|12345/);
+  }finally{
+    console.error=originalLog;
+  }
+});

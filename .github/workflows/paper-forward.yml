@@ -1,0 +1,61 @@
+name: PulseCrypto Paper Forward (Manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pulsecrypto-paper-ledger
+  cancel-in-progress: false
+
+jobs:
+  paper-cycle:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout strategy code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Test before touching the paper ledger
+        run: python -m unittest discover -s tests -v
+      - name: Restore persistent paper ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin paper-state
+          mkdir -p paper_state
+          git show origin/paper-state:runner.json > paper_state/runner.json
+          test -s paper_state/runner.json
+      - name: Scan markets and simulate one cycle
+        run: python paper_cycle.py run --state paper_state/runner.json --events paper_events.json
+      - name: Commit ledger to dedicated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/pulse-state" origin/paper-state
+          cp paper_state/runner.json "$RUNNER_TEMP/pulse-state/runner.json"
+          git -C "$RUNNER_TEMP/pulse-state" config user.name "github-actions[bot]"
+          git -C "$RUNNER_TEMP/pulse-state" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$RUNNER_TEMP/pulse-state" add runner.json
+          if ! git -C "$RUNNER_TEMP/pulse-state" diff --cached --quiet; then
+            git -C "$RUNNER_TEMP/pulse-state" commit -m "Update simulated paper trading ledger"
+            git -C "$RUNNER_TEMP/pulse-state" push origin HEAD:paper-state
+          else
+            echo "No new closed candle, ledger unchanged"
+          fi
+      - name: Notify Telegram only after successful persistence
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python paper_cycle.py notify --events paper_events.json

@@ -7,3 +7,6 @@ workers_dev = true
 # TELEGRAM_WEBHOOK_SECRET: webhook verification secret also configured through Telegram setWebhook.
 # TELEGRAM_CHAT_ID: allowed private Telegram chat ID.
 # Do not commit any Telegram bot token, GitHub personal token or Turso token.
+
+# Cloudflare Git integration: deploy the standalone paper-mode Telegram Worker.
+# Trading and Turso jobs remain managed independently by GitHub Actions.

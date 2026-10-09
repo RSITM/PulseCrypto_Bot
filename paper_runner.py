@@ -113,8 +113,10 @@ def step(state, candles_by_symbol, hourly_by_symbol, day):
         latest = series[-1]
         cursor = cursors.get(sym)
         if cursor is None or latest["time"] > cursor:
-            # do not repurchase a symbol immediately after a stop in the same run
-            if sym not in account.positions and not any(e["symbol"] == sym for e in events):
+            # Only enter on the first observation or one new bar. Skip missed-cycle entries.\n            # Do not repurchase immediately after an exit in the same run.
+            if (sym not in account.positions
+                and not any(e["symbol"] == sym for e in events)
+                and (cursor is None or latest["time"] - cursor == INTERVAL_MS["15m"])):
                 hour = hourly_by_symbol[sym]
                 eligible = [b for b in hour if b["time"] + INTERVAL_MS["1h"] <= latest["time"] + INTERVAL_MS["15m"]]
                 signal = evaluate(series, eligible if len(eligible) >= 205 else None)

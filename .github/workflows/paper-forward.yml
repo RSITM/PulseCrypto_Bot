@@ -1,7 +1,9 @@
-name: PulseCrypto Paper Forward (Manual)
+name: PulseCrypto Paper Forward
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: write

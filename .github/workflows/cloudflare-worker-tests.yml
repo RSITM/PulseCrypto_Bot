@@ -1,0 +1,28 @@
+name: PulseCrypto Cloudflare Worker Tests
+
+on:
+  pull_request:
+    paths:
+      - 'cloudflare/**'
+      - 'wrangler.toml'
+      - 'package.json'
+      - 'tests/worker.test.mjs'
+      - '.github/workflows/cloudflare-worker-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check webhook handler
+        run: node --check cloudflare/worker.js
+      - name: Run offline Cloudflare Worker security tests
+        run: npm run test:worker

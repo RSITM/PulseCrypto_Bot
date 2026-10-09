@@ -62,7 +62,7 @@ def save_runner_state(state, path):
         if temp and os.path.exists(temp):
             os.unlink(temp)
 
-def step(state, candles_by_symbol, hourly_by_symbol, day):
+def step(state, candles_by_symbol, hourly_by_symbol, day, diagnostics=None):
     """Consume fully validated closed bars; mutate state only after validation.
 
     First observation may generate an entry but not an exit; exits use later bars.
@@ -113,33 +113,54 @@ def step(state, candles_by_symbol, hourly_by_symbol, day):
         latest = series[-1]
         cursor = cursors.get(sym)
         if cursor is None or latest["time"] > cursor:
-            # Only enter on the first observation or one new bar. Skip missed-cycle entries.\n            # Do not repurchase immediately after an exit in the same run.
+            exited = any(e["symbol"] == sym for e in events)
+            # Diagnostic outcomes mirror the existing entry eligibility checks.
+            # They never change whether evaluate() or open_long() gets called.
             if (sym not in account.positions
-                and not any(e["symbol"] == sym for e in events)
+                and not exited
                 and (cursor is None or latest["time"] - cursor == INTERVAL_MS["15m"])):
                 hour = hourly_by_symbol[sym]
                 eligible = [b for b in hour if b["time"] + INTERVAL_MS["1h"] <= latest["time"] + INTERVAL_MS["15m"]]
                 signal = evaluate(series, eligible if len(eligible) >= 205 else None)
                 print(f"PAPER SIGNAL {sym}: {signal.action} — {signal.reason} (closed 15m candle {latest['time']})")
+                outcome, reason = "WAIT", signal.reason
                 if signal.action == "BUY":
                     result = account.open_long(sym, signal.entry, signal.stop, signal.target)
                     if result == "PAPER_BUY":
+                        outcome, reason = "PAPER_BUY", signal.reason
                         events.append({"symbol": sym, "action": result,
                                        "entry": account.positions[sym].entry,
                                        "stop": signal.stop, "target": signal.target,
                                        "time": latest["time"]})
+                    else:
+                        outcome, reason = "ENTRY_BLOCKED", result
+            elif sym in account.positions:
+                outcome, reason = "OPEN_POSITION", "Position already open"
+            elif exited:
+                outcome, reason = "EXITED_THIS_CYCLE", "Same-candle reentry disabled"
+            else:
+                outcome, reason = "MISSED_CANDLES", "More than one new 15m candle; entry skipped"
+            if diagnostics is not None:
+                diagnostics.append({"symbol": sym, "candle_ms": latest["time"],
+                                    "outcome": outcome, "reason": reason})
             cursors[sym] = latest["time"]
     return RunnerState(account, cursors), events
 
-def run(path="paper_state/runner.json"):
+def run(path="paper_state/runner.json", observations_path=None):
     """One manual, read-only market observation; saves locally, prints events."""
     # Fetch all series before changing saved state.
     data = {sym: fetch_closed(sym, "15m") for sym in SYMBOLS}
     hourly = {sym: fetch_closed(sym, "1h") for sym in SYMBOLS}
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc).date().isoformat()
-    new_state, events = step(load_runner_state(path), data, hourly, now)
+    observations = []
+    new_state, events = step(load_runner_state(path), data, hourly, now, diagnostics=observations)
     save_runner_state(new_state, path)
+    if observations_path is not None:
+        try:
+            Path(observations_path).write_text(json.dumps(observations, allow_nan=False), encoding="utf-8")
+        except OSError:
+            print("Warning: unable to write optional signal diagnostics; paper ledger was saved")
     print(json.dumps({"mode": "PAPER_ONLY", "events": events,
                       "cash": round(new_state.account.cash, 4),
                       "open_positions": list(new_state.account.positions),

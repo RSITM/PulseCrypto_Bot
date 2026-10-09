@@ -1,0 +1,36 @@
+name: PulseCrypto Turso Backup Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-turso-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run offline tests
+        run: python -m unittest discover -s tests -v
+      - name: Load current GitHub paper ledger (read only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin paper-state
+          mkdir -p paper_state
+          git show origin/paper-state:runner.json > paper_state/runner.json
+          test -s paper_state/runner.json
+      - name: Archive and verify exact ledger snapshot in Turso
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: python turso_backup.py --state paper_state/runner.json

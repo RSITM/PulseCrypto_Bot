@@ -1,0 +1,9 @@
+name = "pulsecrypto-telegram"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-10-09"
+workers_dev = true
+
+# Configure separately in Cloudflare Worker Settings as encrypted secrets:
+# TELEGRAM_WEBHOOK_SECRET: webhook verification secret also configured through Telegram setWebhook.
+# TELEGRAM_CHAT_ID: allowed private Telegram chat ID.
+# Do not commit any Telegram bot token, GitHub personal token or Turso token.

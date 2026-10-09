@@ -37,8 +37,12 @@ jobs:
           secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
           raw = os.environ.get("WORKER_URL", "").strip().rstrip("/")
           address = urlparse(raw)
-          if not token or not re.fullmatch(r"[A-Za-z0-9_-]{32,256}", secret):
-              raise SystemExit("Missing bot token or valid webhook secret")
+          if not token:
+              raise SystemExit("Missing GitHub Actions secret: TELEGRAM_BOT_TOKEN")
+          if not secret:
+              raise SystemExit("Missing GitHub Actions secret: TELEGRAM_WEBHOOK_SECRET")
+          if not re.fullmatch(r"[A-Za-z0-9_-]{32,256}", secret):
+              raise SystemExit("Invalid TELEGRAM_WEBHOOK_SECRET: use 32-256 letters, numbers, underscores or hyphens only")
           if (address.scheme != "https" or not address.hostname or
               not address.hostname.endswith(".workers.dev") or
               address.username or address.password or address.port or

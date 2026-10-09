@@ -144,8 +144,12 @@ async function command(name){
 export default {
   async fetch(req,env){
     const url=new URL(req.url);
-    if(url.pathname==="/"&&req.method==="GET")
-      return new Response("PulseCrypto Telegram webhook ready — PAPER ONLY",{status:200});
+    if((url.pathname==="/"||url.pathname==="/ready")&&req.method==="GET"){
+      // Public readiness reflects the actual production binding availability.
+      // Never return configuration names, chat IDs, or secret values.
+      const ready=Boolean(env?.TELEGRAM_WEBHOOK_SECRET&&env?.TELEGRAM_CHAT_ID);
+      return new Response(ready?"PulseCrypto Telegram Worker configured — PAPER ONLY":"PulseCrypto Telegram Worker not configured — check Production secrets and Deploy",{status:ready?200:503,headers:{"cache-control":"no-store","content-type":"text/plain; charset=utf-8"}});
+    }
     if(url.pathname!=="/telegram"||req.method!=="POST")return new Response("Not found",{status:404});
     const missingBindings=[
       !env?.TELEGRAM_WEBHOOK_SECRET && "TELEGRAM_WEBHOOK_SECRET",

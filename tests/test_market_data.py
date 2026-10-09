@@ -8,7 +8,7 @@ class MarketDataTests(unittest.TestCase):
     def test_prices(self, session_class):
         session = session_class.return_value.__enter__.return_value
         session.get.side_effect = [
-            Mock(status_code=200, json=lambda: {"symbol": s, "price": p})
+            Mock(status_code=200, json=lambda s=s, p=p: {"symbol": s, "price": p})
             for s, p in [("BTCUSDT", "65000"), ("ETHUSDT", "3000"), ("SOLUSDT", "150")]
         ]
         self.assertEqual(get_prices(), {"BTC": 65000.0, "ETH": 3000.0, "SOL": 150.0})

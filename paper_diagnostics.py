@@ -141,7 +141,17 @@ def markdown_summary(history):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("report",))
+    parser.add_argument("command", choices=("report", "record"))
     parser.add_argument("--file", required=True)
+    parser.add_argument("--observations")
     args = parser.parse_args()
-    print(markdown_summary(load_history(args.file)))
+    if args.command == "record":
+        if not args.observations:
+            parser.error("--observations is required for record")
+        observations = json.loads(Path(args.observations).read_text(encoding="utf-8"))
+        if not isinstance(observations, list):
+            raise ValueError("Diagnostic observations must be a list")
+        updated = append_observations(args.file, observations)
+        print(f"Signal diagnostics recorded: {len(observations)} observation(s)")
+    else:
+        print(markdown_summary(load_history(args.file)))

@@ -1,0 +1,75 @@
+name: PulseCrypto Telegram Commands
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Read commands only; no replies and no cursor updates'
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: pulsecrypto-telegram-command-poll
+  cancel-in-progress: false
+
+jobs:
+  commands:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout read-only Telegram command center
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install requests for Telegram and GitHub API
+        run: pip install requests
+      - name: Run offline regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Restore independent Telegram command cursor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin telegram-state
+          git show origin/telegram-state:telegram_command_cursor.json > telegram_command_cursor.json
+          test -s telegram_command_cursor.json
+      - name: Read and reply to authorized Telegram commands
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            python telegram_commands.py --state telegram_command_cursor.json --dry-run
+          else
+            python telegram_commands.py --state telegram_command_cursor.json
+          fi
+      - name: Persist processed command cursor
+        if: inputs.dry_run == false
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/pulse-telegram" origin/telegram-state
+          cp telegram_command_cursor.json "$RUNNER_TEMP/pulse-telegram/telegram_command_cursor.json"
+          git -C "$RUNNER_TEMP/pulse-telegram" config user.name "github-actions[bot]"
+          git -C "$RUNNER_TEMP/pulse-telegram" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$RUNNER_TEMP/pulse-telegram" add telegram_command_cursor.json
+          if ! git -C "$RUNNER_TEMP/pulse-telegram" diff --cached --quiet; then
+            git -C "$RUNNER_TEMP/pulse-telegram" commit -m "Advance private Telegram command cursor"
+            git -C "$RUNNER_TEMP/pulse-telegram" push origin HEAD:telegram-state
+          else
+            echo "No new Telegram commands to acknowledge"
+          fi

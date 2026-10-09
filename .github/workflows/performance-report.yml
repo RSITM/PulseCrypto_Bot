@@ -1,0 +1,59 @@
+name: PulseCrypto Performance Report
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - PulseCrypto Paper Forward
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pulsecrypto-performance-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out report generator
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies for existing tests
+        run: pip install requests
+      - name: Run all offline regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Read latest committed paper trading ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin paper-state
+          mkdir -p paper_state
+          git show origin/paper-state:runner.json > paper_state/runner.json
+          test -s paper_state/runner.json
+      - name: Create read-only performance report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p report_output
+          python paper_report.py --state paper_state/runner.json --markdown report_output/PulseCrypto-Report.md --html report_output/PulseCrypto-Dashboard.html
+          cat report_output/PulseCrypto-Report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save standalone HTML dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulsecrypto-performance-report
+          path: report_output/
+          retention-days: 3
+          if-no-files-found: error

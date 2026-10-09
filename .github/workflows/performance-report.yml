@@ -50,6 +50,17 @@ jobs:
           mkdir -p report_output
           python paper_report.py --state paper_state/runner.json --markdown report_output/PulseCrypto-Report.md --html report_output/PulseCrypto-Dashboard.html
           cat report_output/PulseCrypto-Report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Summarize signal decisions and rejection reasons
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git cat-file -e origin/paper-state:signal_diagnostics.json 2>/dev/null; then
+            git show origin/paper-state:signal_diagnostics.json > report_output/signal_diagnostics.json
+            python paper_diagnostics.py report --file report_output/signal_diagnostics.json > report_output/PulseCrypto-Signals.md
+          else
+            printf '%s\n' '## PulseCrypto Signal Diagnostics' '' 'No observations recorded yet.' > report_output/PulseCrypto-Signals.md
+          fi
+          cat report_output/PulseCrypto-Signals.md >> "$GITHUB_STEP_SUMMARY"
       - name: Save standalone HTML dashboard
         uses: actions/upload-artifact@v4
         with:

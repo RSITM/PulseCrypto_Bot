@@ -147,7 +147,15 @@ export default {
     if(url.pathname==="/"&&req.method==="GET")
       return new Response("PulseCrypto Telegram webhook ready — PAPER ONLY",{status:200});
     if(url.pathname!=="/telegram"||req.method!=="POST")return new Response("Not found",{status:404});
-    if(!env.TELEGRAM_WEBHOOK_SECRET||!env.TELEGRAM_CHAT_ID)return new Response("Not configured",{status:503});
+    const missingBindings=[
+      !env?.TELEGRAM_WEBHOOK_SECRET && "TELEGRAM_WEBHOOK_SECRET",
+      !env?.TELEGRAM_CHAT_ID && "TELEGRAM_CHAT_ID"
+    ].filter(Boolean);
+    if(missingBindings.length){
+      // Only print binding NAMES for debugging. Never log secret values or chat IDs.
+      console.error("PulseCrypto production Worker missing binding(s): "+missingBindings.join(", "));
+      return new Response("Worker configuration incomplete",{status:503});
+    }
     if(req.headers.get("x-telegram-bot-api-secret-token")!==env.TELEGRAM_WEBHOOK_SECRET)
       return new Response("Unauthorized",{status:401});
     if(Number(req.headers.get("content-length")||0)>16000)return new Response("Too large",{status:413});

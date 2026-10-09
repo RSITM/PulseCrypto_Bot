@@ -38,7 +38,7 @@ jobs:
           git show origin/paper-state:runner.json > paper_state/runner.json
           test -s paper_state/runner.json
       - name: Scan markets and simulate one cycle
-        run: python paper_cycle.py run --state paper_state/runner.json --events paper_events.json
+        run: python paper_cycle.py run --state paper_state/runner.json --events paper_events.json --observations paper_observations.json
       - name: Commit ledger to dedicated branch
         shell: bash
         run: |
@@ -53,6 +53,23 @@ jobs:
             git -C "$RUNNER_TEMP/pulse-state" push origin HEAD:paper-state
           else
             echo "No new closed candle, ledger unchanged"
+          fi
+      - name: Record signal diagnostics without blocking paper trading
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s paper_observations.json ]; then
+            echo "No diagnostic observations to record"
+            exit 0
+          fi
+          python paper_diagnostics.py record --file "$RUNNER_TEMP/pulse-state/signal_diagnostics.json" --observations paper_observations.json
+          git -C "$RUNNER_TEMP/pulse-state" add signal_diagnostics.json
+          if ! git -C "$RUNNER_TEMP/pulse-state" diff --cached --quiet; then
+            git -C "$RUNNER_TEMP/pulse-state" commit -m "Record paper signal decision diagnostics"
+            git -C "$RUNNER_TEMP/pulse-state" push origin HEAD:paper-state
+          else
+            echo "No new diagnostic observations"
           fi
       - name: Notify Telegram only after successful persistence
         env:

@@ -163,3 +163,12 @@ test('public readiness returns 200 only after both bindings are present',async()
   assert.equal(result.status,200);
   assert.match(await result.text(),/configured/);
 });
+
+test('Cloudflare deploy config preserves dashboard variables and requires Telegram secrets',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const config=readFileSync(new URL('../wrangler.toml',import.meta.url),'utf8');
+  assert.match(config,/^keep_vars\s*=\s*true\s*$/m);
+  assert.match(config,/^\[secrets\]\s*$/m);
+  assert.match(config,/^required\s*=\s*\["TELEGRAM_CHAT_ID",\s*"TELEGRAM_WEBHOOK_SECRET"\]\s*$/m);
+  assert.doesNotMatch(config,/TELEGRAM_CHAT_ID\s*=|TELEGRAM_WEBHOOK_SECRET\s*=/);
+});

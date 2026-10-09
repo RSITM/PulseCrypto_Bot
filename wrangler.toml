@@ -3,6 +3,15 @@ main = "cloudflare/worker.js"
 compatibility_date = "2026-10-09"
 workers_dev = true
 
+# Preserve dashboard-managed runtime variables and secrets across GitHub-triggered
+# Wrangler deployments. Never place secret values in this file.
+keep_vars = true
+
+# Fail closed: no new deployment if required encrypted runtime secrets are absent.
+# Only their names are declared here, never their values.
+[secrets]
+required = ["TELEGRAM_CHAT_ID", "TELEGRAM_WEBHOOK_SECRET"]
+
 # Configure separately in Cloudflare Worker Settings as encrypted secrets:
 # TELEGRAM_WEBHOOK_SECRET: webhook verification secret also configured through Telegram setWebhook.
 # TELEGRAM_CHAT_ID: allowed private Telegram chat ID.

@@ -120,6 +120,7 @@ def step(state, candles_by_symbol, hourly_by_symbol, day):
                 hour = hourly_by_symbol[sym]
                 eligible = [b for b in hour if b["time"] + INTERVAL_MS["1h"] <= latest["time"] + INTERVAL_MS["15m"]]
                 signal = evaluate(series, eligible if len(eligible) >= 205 else None)
+                print(f"PAPER SIGNAL {sym}: {signal.action} — {signal.reason} (closed 15m candle {latest['time']})")
                 if signal.action == "BUY":
                     result = account.open_long(sym, signal.entry, signal.stop, signal.target)
                     if result == "PAPER_BUY":

@@ -87,3 +87,18 @@ test('missing active production secret bindings give 503 and only print binding 
     console.error=originalLog;
   }
 });
+
+
+test('public readiness returns 503 when production secrets are not bound',async()=>{
+  const result=await worker.fetch(new Request(origin+'/ready'),{});
+  assert.equal(result.status,503);
+  const body=await result.text();
+  assert.match(body,/not configured/);
+  assert.doesNotMatch(body,/TELEGRAM_CHAT_ID|TELEGRAM_WEBHOOK_SECRET|12345|test-secret-value/);
+});
+
+test('public readiness returns 200 only after both bindings are present',async()=>{
+  const result=await worker.fetch(new Request(origin+'/ready'),env);
+  assert.equal(result.status,200);
+  assert.match(await result.text(),/configured/);
+});

@@ -1,21 +1,25 @@
 {
   "runner_version": 1,
   "ledger": {
-    "version": 1,
     "account": {
       "cash": 500,
-      "starting_equity": 500,
-      "fee_rate": 0.0026,
-      "slippage_rate": 0.001,
-      "risk_fraction": 0.005,
       "daily_loss_fraction": 0.02,
+      "daily_realized_pnl": 0.0,
+      "day_start_equity": 500,
+      "fee_rate": 0.0026,
       "max_positions": 2,
       "positions": {},
-      "trades": [],
-      "session_day": null,
-      "day_start_equity": 500,
-      "daily_realized_pnl": 0
-    }
+      "risk_fraction": 0.005,
+      "session_day": "2026-10-09",
+      "slippage_rate": 0.001,
+      "starting_equity": 500,
+      "trades": []
+    },
+    "version": 1
   },
-  "cursors": {}
+  "cursors": {
+    "BTCUSDT": 1791525600000,
+    "ETHUSDT": 1791525600000,
+    "SOLUSDT": 1791525600000
+  }
 }

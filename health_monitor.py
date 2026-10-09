@@ -144,8 +144,8 @@ def load_state(path):
     data = json.loads(path.read_text(encoding="utf-8"))
     if (not isinstance(data, dict) or set(data) != {"version", "active"}
             or data["version"] != STATE_VERSION or not isinstance(data["active"], list)
-            or len(set(map(str, data["active"]))) != len(data["active"])
-            or any(code not in DESCRIPTIONS for code in data["active"])):
+            or any(not isinstance(code, str) or code not in DESCRIPTIONS for code in data["active"])
+            or len(set(data["active"])) != len(data["active"])):
         raise ValueError("Invalid health monitor state")
     return data
 

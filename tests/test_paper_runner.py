@@ -50,6 +50,16 @@ class PaperRunnerTests(unittest.TestCase):
         self.assertEqual(len(next_state.account.trades), 2)
         self.assertEqual(once.account.trades, [])
 
+    def test_late_cycle_does_not_open_new_position(self):
+        a, h = markets()
+        latest = a["BTCUSDT"][-1]["time"]
+        state = RunnerState(PaperAccount(), {sym: latest - 3 * FIFTEEN for sym in SYMBOLS})
+        with patch("paper_runner.evaluate", return_value=Signal("BUY", "test", 100, 95, 115)):
+            next_state, events = step(state, a, h, "2026-10-08")
+        self.assertEqual(events, [])
+        self.assertEqual(next_state.account.positions, {})
+        self.assertEqual(next_state.cursors["BTCUSDT"], latest)
+
     def test_missing_history_refused(self):
         a, h = markets()
         state = RunnerState(PaperAccount(), {"BTCUSDT": 1})

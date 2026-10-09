@@ -151,7 +151,7 @@ def load_state(path):
 
 
 def format_transition(new, recovered):
-    lines = ["🚨 PulseCrypto Health Alert — PAPER TRADING ONLY"]
+    lines = ["🚨 PulseCrypto Health Alert — PAPER TRADING ONLY" if new else "✅ PulseCrypto Health Recovered — PAPER TRADING ONLY"]
     if new:
         lines.append("")
         lines.append("Needs attention:")

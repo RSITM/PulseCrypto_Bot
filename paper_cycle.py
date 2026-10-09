@@ -25,8 +25,8 @@ def format_event(event):
                 + "\nSIMULATION ONLY — no real order")
     raise ValueError("Unknown paper event")
 
-def run_cycle(state_file, event_file):
-    _, events = run(state_file)
+def run_cycle(state_file, event_file, observations_file=None):
+    _, events = run(state_file, observations_path=observations_file)
     Path(event_file).write_text(json.dumps(events, allow_nan=False), encoding="utf-8")
     print(f"Prepared {len(events)} paper notification(s)")
 
@@ -44,8 +44,9 @@ if __name__ == "__main__":
     parser.add_argument("command", choices=("run", "notify"))
     parser.add_argument("--state", default="paper_state/runner.json")
     parser.add_argument("--events", default="paper_events.json")
+    parser.add_argument("--observations")
     args = parser.parse_args()
     if args.command == "run":
-        run_cycle(args.state, args.events)
+        run_cycle(args.state, args.events, args.observations)
     else:
         notify(args.events)

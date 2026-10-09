@@ -48,25 +48,86 @@ test('help command returns immediate read-only Telegram response',async()=>{
   }finally{globalThis.fetch=oldFetch}
 });
 
-test('balance reads the existing simulated ledger without placing orders',async()=>{
+test('balance uses public raw paper ledger without submitting trades',async()=>{
   const state={runner_version:1,ledger:{version:1,account:{
     cash:500,starting_equity:500,positions:{},trades:[]}},
     cursors:{BTCUSDT:1791553500000,ETHUSDT:1791553500000,SOLUSDT:1791553500000}};
-  let hits=0;
+  const calls=[];
   globalThis.fetch=async(url,opts)=>{
-    hits++;
-    assert.match(String(url),/\/contents\/runner\.json\?ref=paper-state$/);
+    calls.push(String(url));
+    assert.match(String(url),/raw.githubusercontent.com\/RSITM\/PulseCrypto_Bot\/paper-state\/runner\.json$/);
     assert.equal(opts?.method,undefined);
-    return new Response(JSON.stringify({encoding:'base64',content:btoa(JSON.stringify(state))}),
-      {status:200,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify(state),{status:200});
   };
   try{
     const r=await worker.fetch(request(update('/balance')),env);
     assert.equal(r.status,200);
     const m=await r.json();
-    assert.equal(hits,1);
+    assert.equal(calls.length,1);
     assert.match(m.text,/\$500\.00/);
     assert.match(m.text,/PAPER BALANCE/);
+  }finally{globalThis.fetch=oldFetch}
+});
+
+test('signals reads recorded public diagnostic counts even when GitHub REST API is rate limited',async()=>{
+  const history={version:1,counts:{
+    BTCUSDT:{"WAIT: 15m trend not bullish":35,"WAIT: Insufficient volatility":2},
+    ETHUSDT:{"WAIT: 15m trend not bullish":37},
+    SOLUSDT:{"WAIT: 15m trend not bullish":37}},recent:[]};
+  const calls=[];
+  globalThis.fetch=async(url)=>{
+    calls.push(String(url));
+    if(String(url).startsWith('https://api.github.com/')){
+      return new Response('rate limited',{status:403});
+    }
+    assert.match(String(url),/raw.githubusercontent.com\/RSITM\/PulseCrypto_Bot\/paper-state\/signal_diagnostics\.json$/);
+    return new Response(JSON.stringify(history),{status:200});
+  };
+  try{
+    const r=await worker.fetch(request(update('/signals')),env);
+    assert.equal(r.status,200);
+    const m=await r.json();
+    assert.match(m.text,/BTC: 37 decisions/);
+    assert.match(m.text,/ETH: 37 decisions/);
+    assert.match(m.text,/SOL: 37 decisions/);
+    assert.match(m.text,/15m trend not bullish/);
+    assert.equal(calls.length,1);
+  }finally{globalThis.fetch=oldFetch}
+});
+
+test('REST contents API is a fallback when raw GitHub is temporarily unavailable',async()=>{
+  const state={runner_version:1,ledger:{version:1,account:{
+    cash:500,starting_equity:500,positions:{},trades:[]}},cursors:{}};
+  const calls=[];
+  globalThis.fetch=async(url)=>{
+    calls.push(String(url));
+    if(String(url).startsWith('https://raw.githubusercontent.com/'))
+      return new Response('unavailable',{status:503});
+    assert.match(String(url),/\/contents\/runner\.json\?ref=paper-state$/);
+    return new Response(JSON.stringify({encoding:'base64',content:btoa(JSON.stringify(state))}),{status:200});
+  };
+  try{
+    const r=await worker.fetch(request(update('/balance')),env);
+    const m=await r.json();
+    assert.match(m.text,/\$500\.00/);
+    assert.equal(calls.length,2);
+  }finally{globalThis.fetch=oldFetch}
+});
+
+test('status reports GitHub API 403 rather than suggesting a confirmed scanner outage',async()=>{
+  const state={runner_version:1,ledger:{version:1,account:{
+    cash:500,starting_equity:500,positions:{},trades:[]}},
+    cursors:{BTCUSDT:1791553500000,ETHUSDT:1791553500000,SOLUSDT:1791553500000}};
+  globalThis.fetch=async(url)=>{
+    if(String(url).startsWith('https://raw.githubusercontent.com/'))
+      return new Response(JSON.stringify(state),{status:200});
+    return new Response('rate limited',{status:403});
+  };
+  try{
+    const r=await worker.fetch(request(update('/status')),env);
+    const m=await r.json();
+    assert.match(m.text,/UNKNOWN — GitHub API HTTP 403/);
+    assert.match(m.text,/Last processed candle/);
   }finally{globalThis.fetch=oldFetch}
 });
 

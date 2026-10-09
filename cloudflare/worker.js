@@ -4,17 +4,45 @@
  * No bot token, order placement, broker keys or changes to the Python strategy.
  */
 const ROOT="https://api.github.com/repos/RSITM/PulseCrypto_Bot";
+const RAW_PAPER="https://raw.githubusercontent.com/RSITM/PulseCrypto_Bot/paper-state/";
 const SYMBOLS=["BTCUSDT","ETHUSDT","SOLUSDT"];
 const FIFTEEN=900000;
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
 
 async function github(path){
-  const r=await fetch(ROOT+path,{headers:{"accept":"application/vnd.github+json","user-agent":"PulseCrypto-Paper-Telegram"}});
-  if(!r.ok)throw Error("Could not read GitHub data");
-  return r.json();
+  let r;
+  try {
+    r=await fetch(ROOT+path,{
+      headers:{
+        "accept":"application/vnd.github+json",
+        "x-github-api-version":"2022-11-28",
+        "user-agent":"PulseCrypto-Paper-Telegram"
+      },
+      cf:{cacheEverything:true,cacheTtl:30}
+    });
+  } catch {
+    throw Error("GitHub API request failed");
+  }
+  if(!r.ok)throw Error("GitHub API HTTP "+r.status);
+  try{return await r.json()}
+  catch {throw Error("GitHub API returned invalid JSON")}
 }
 async function file(name){
   if(!["runner.json","signal_diagnostics.json"].includes(name))throw Error("Unsupported data");
+  // Read-only public paper history without GitHub API rate limits.
+  // Keep the REST Contents endpoint as fallback.
+  try{
+    const r=await fetch(RAW_PAPER+name,{
+      headers:{"accept":"application/json"},
+      cf:{cacheEverything:true,cacheTtl:30}
+    });
+    if(r.ok){
+      const data=await r.json();
+      if(data&&typeof data==="object")return data;
+    }
+  }catch{
+    // Fallback to GitHub Contents API below.
+  }
   const data=await github("/contents/"+name+"?ref=paper-state");
   if(data.encoding!=="base64" || typeof data.content!=="string")throw Error("Invalid saved file");
   return JSON.parse(atob(data.content.replace(/\s/g,"")));
@@ -103,8 +131,13 @@ async function status(){
   const r=await Promise.allSettled([
     workflowStatus("paper-forward.yml",40), workflowStatus("turso-backup-test.yml",45), file("runner.json")
   ]);
-  const scanner=r[0].status==="fulfilled"?r[0].value:"UNKNOWN — GitHub data unavailable",
-    backup=r[1].status==="fulfilled"?r[1].value:"UNKNOWN — GitHub data unavailable";
+  const reason=result=>{
+    const detail=String(result.reason?.message||"");
+    const code=detail.match(/GitHub API HTTP [0-9]{3}/)?.[0];
+    return "UNKNOWN — "+(code||"GitHub workflow data unavailable");
+  };
+  const scanner=r[0].status==="fulfilled"?r[0].value:reason(r[0]),
+    backup=r[1].status==="fulfilled"?r[1].value:reason(r[1]);
   let candle="UNKNOWN — saved candle history unavailable",when="Unavailable";
   if(r[2].status==="fulfilled"){
     const data=r[2].value;when=lastCandle(data);
@@ -133,7 +166,10 @@ async function command(name){
   if(name==="/status")return status();
   if(name==="/signals"){
     try{return signals(await file("signal_diagnostics.json"))}
-    catch{return "📡 PulseCrypto signal diagnostics aren't available yet."}
+    catch(error){
+      const code=String(error?.message||"").match(/GitHub API HTTP [0-9]{3}/)?.[0];
+      return "📡 PulseCrypto signal history could not be loaded from GitHub"+(code?" ("+code+")":"")+". Try again shortly.";
+    }
   }
   if(["/balance","/performance","/trades"].includes(name)){
     const data=await file("runner.json");

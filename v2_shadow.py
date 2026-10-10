@@ -257,5 +257,68 @@ def evaluate_v2(symbol, histories, as_of_ms, order_book=None, intended_notional_
     )
 
 
+def evaluate_v2_price_only(symbol, histories, as_of_ms):
+    """Offline V2-A PRICE ONLY hypothesis; does NOT claim liquidity passed.
+
+    The normal evaluate_v2() requires a live order-book snapshot. This
+    separate research function stops at a qualified candle-only setup.
+    Neither function places orders or changes any account state.
+    """
+    if symbol not in SYMBOLS:
+        raise ValueError("Unsupported paper market")
+    if type(as_of_ms) is not int or as_of_ms <= 0 or as_of_ms % FIVE:
+        raise ValueError("Evaluation must be on a closed 5m UTC boundary")
+    if not isinstance(histories, Mapping) or set(histories) != set(INTERVALS):
+        raise ValueError("Supply complete 5m/15m/1h/4h histories")
+    for tf in INTERVALS:
+        _closed_candles(histories[tf], tf, as_of_ms)
+
+    def wait(reason, bias="UNCONFIRMED", setup="NONE"):
+        return V2Decision("WAIT", reason, symbol, as_of_ms, bias, setup)
+
+    if not (_bullish_bias(histories["4h"]) and _bullish_bias(histories["1h"])):
+        return wait("4H/1H bullish alignment absent", "NOT_BULLISH")
+    bias = "BULLISH_4H_1H"
+    fifteen = histories["15m"]
+    e20 = ema([bar["close"] for bar in fifteen], 20)
+    near_ema = any(e20 * 0.990 <= bar["low"] <= e20 * 1.0035
+                   for bar in fifteen[-8:-1])
+    if not (near_ema and fifteen[-1]["close"] > e20
+            and fifteen[-1]["close"] > fifteen[-2]["close"]):
+        return wait("No confirmed 15M support pullback and recovery", bias)
+    setup = "15M_EMA20_PULLBACK"
+
+    five = histories["5m"]
+    if five[-1]["close"] <= max(bar["high"] for bar in five[-4:-1]):
+        return wait("5M structure break not confirmed", bias, setup)
+    prev_volume = sum(bar["volume"] for bar in five[-21:-1]) / 20
+    if prev_volume <= 0 or five[-1]["volume"] < prev_volume * 1.15:
+        return wait("5M relative volume confirmation absent", bias, setup)
+    if five[-1]["close"] <= five[-2]["close"]:
+        return wait("5M close lacks upward momentum", bias, setup)
+
+    # Candle-only structural prices are *not* executable order book quotes.
+    # Backtest subsequently prices at the NEXT 5m candle's real opening price.
+    reference = five[-1]["close"] * (1 + ADVERSE_SLIPPAGE_PER_SIDE)
+    stop = min(bar["low"] for bar in five[-6:]) - 0.10 * atr(five)
+    resistance = max(bar["high"] for bar in fifteen[-21:-1])
+    if stop <= 0 or stop >= reference or resistance <= reference:
+        return wait("No valid structural stop / overhead resistance room", bias, setup)
+    reward_risk = (resistance - reference) / (reference - stop)
+    net_reward = (
+        resistance * (1 - ADVERSE_SLIPPAGE_PER_SIDE) * (1 - FEE_PER_SIDE)
+        - reference * (1 + FEE_PER_SIDE)
+    ) / reference
+    if reward_risk < MIN_REWARD_RISK or net_reward < MIN_NET_REWARD_PCT:
+        return wait("Insufficient reward after modeled execution costs", bias, setup)
+
+    return V2Decision(
+        "CANDIDATE_PRICE_ONLY",
+        "Unfiltered V2-A candle setup; historical order-book unavailable",
+        symbol, as_of_ms, bias, setup, round(reference, 8),
+        round(stop, 8), round(resistance, 8), round(reward_risk, 3)
+    )
+
+
 if __name__ == "__main__":
     print("PulseCrypto V2 SHADOW RESEARCH ONLY. No order execution.")

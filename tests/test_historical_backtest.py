@@ -77,7 +77,7 @@ class OfflineReplayTests(unittest.TestCase):
     def test_missing_bar_rejected_instead_of_fabricating_returns(self):
         d = dataset()
         d["symbols"]["SOLUSDT"]["15m"].pop()
-        with self.assertRaisesRegex(ValueError, "missing or out-of-order"):
+        with self.assertRaisesRegex(ValueError, "coverage/warmup incomplete"):
             replay(d, always_wait)
 
     def test_analysis_requires_all_three_markets(self):

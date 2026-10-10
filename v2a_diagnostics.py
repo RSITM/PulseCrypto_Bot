@@ -17,6 +17,7 @@ from v2_shadow import (FIVE, FIFTEEN, HOUR, FOUR_HOURS, INTERVALS,
                        V2Decision, _bullish_bias, _closed_candles,
                        evaluate_v2_price_only)
 from v2a_backtest import simulate_v2a, validate, stamp
+from v2a_history import DAY
 
 
 @dataclass(frozen=True)

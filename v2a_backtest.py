@@ -100,9 +100,15 @@ def fill_is_valid(pending, market_open, fee, slip):
     return (exit_net - buy_cost) / fill >= MIN_NET_REWARD_PCT
 
 
-def simulate_v2a(data, evaluator=evaluate_v2_price_only):
-    start, end, warmup = validate(data)
-    frames = build_frames(data, warmup, end)
+def simulate_v2a(data, evaluator=evaluate_v2_price_only, *, start_ms=None, end_ms=None):
+    full_start, full_end, warmup = validate(data)
+    start = full_start if start_ms is None else start_ms
+    end = full_end if end_ms is None else end_ms
+    if (type(start) is not int or type(end) is not int
+            or start % FOUR_HOURS or end % FOUR_HOURS
+            or start < full_start or end > full_end or end <= start):
+        raise ValueError("Invalid aligned chronological research subwindow")
+    frames = build_frames(data, warmup, full_end)
     timestamp_maps = {
         symbol: {tf: [x["time"] for x in rows]
                  for tf, rows in symbol_frames.items()}
@@ -198,6 +204,16 @@ def simulate_v2a(data, evaluator=evaluate_v2_price_only):
                         "stop_gap_at_open": row["open"] < context["stop"] if trade["reason"] == "STOP" else False,
                         "net_pnl_usd": round(trade["net_pnl"], 6),
                         "fees_usd": round(trade["entry_fee"] + trade["exit_fee"], 6),
+                        # An explicitly hypothetical stop-price exit sensitivity,
+                        # NOT an assertion that the real market would fill there.
+                        "stop_price_hypothetical_net_pnl_usd": (
+                            round(
+                                trade["quantity"] * context["stop"]
+                                * (1 - cash.slippage_rate) * (1 - cash.fee_rate)
+                                - trade["quantity"] * context["modeled_entry_fill"]
+                                - trade["entry_fee"], 6
+                            ) if trade["reason"] == "STOP" else None
+                        ),
                         "max_favorable_move_pct": round(
                             100 * (context["max_observed_high"] / context["modeled_entry_fill"] - 1), 4),
                         "max_adverse_move_pct": round(
@@ -241,6 +257,7 @@ def simulate_v2a(data, evaluator=evaluate_v2_price_only):
     losses = [t["net_pnl"] for t in trades if t["net_pnl"] < 0]
     return {
         "mode": "V2A_HISTORICAL_CANDLE_ONLY_RESEARCH",
+        "replay_period": {"start": stamp(start), "end_exclusive": stamp(end)},
         "order_book_history": "UNAVAILABLE: not simulated or inferred",
         "first_entry": first_entry,
         "first_entry_actual_next_bar_open": first_entry_market_open,

@@ -9,13 +9,14 @@ from v2a_diagnostics import (
 from v2a_backtest import simulate_v2a
 from v2_shadow import FIVE, FOUR_HOURS, V2Decision, evaluate_v2_price_only
 from test_v2_shadow import histories, EVAL
-from test_v2a_backtest import dataset, stamp
+from test_v2a_backtest import dataset, stamp, END
+from v2a_history import DAY
+
+FIRST_TEST_SIGNAL = END - 7 * DAY + FIVE
 
 
 def synthetic_trade(symbol, _frames, at):
-    data = dataset()
-    first_at = data["analysis_start_ms"] + FIVE
-    if symbol == "BTCUSDT" and at == first_at:
+    if symbol == "BTCUSDT" and at == FIRST_TEST_SIGNAL:
         return V2Decision("CANDIDATE_PRICE_ONLY", "controlled stop test",
                           symbol, at, "BULLISH_4H_1H", "15M_EMA20_PULLBACK",
                           entry_reference=100, stop=99, target=103)
@@ -69,7 +70,7 @@ class VariantRulesTests(unittest.TestCase):
         ]
         fifteen[-6].update(close=102.0, high=102.5, low=100.5)
         fifteen[-4].update(close=101.2, high=101.6, low=101.0)
-        fifteen[-2].update(close=102.0, high=102.2, low=101.6)
+        fifteen[-2].update(close=102.0, high=102.2, low=102.0)
         fifteen[-1].update(close=103.0, high=103.2, low=102.0)
         self.assertTrue(breakout_retest(fifteen))
         fifteen[-4].update(close=99.0, high=101.6, low=97.0)
@@ -134,7 +135,7 @@ class ForensicsAndWindowTests(unittest.TestCase):
         self.assertEqual(mocked.call_count, 12)
         self.assertGreater(result["later_window"]["days"], 0)
         self.assertEqual(result["available_period"]["days"], 7)
-        self.assertIn("UNAVAILABLE", result["limitations"][5].upper())
+        self.assertIn("ORDER-BOOK", result["limitations"][5].upper())
         rendered = report(result)
         self.assertIn("ONE_HOUR_ONLY", rendered)
         self.assertIn("untouched chronological holdout", rendered)

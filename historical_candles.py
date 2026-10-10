@@ -46,7 +46,10 @@ def bars_for_range(session, symbol, interval, start, end, now_ms):
             opened = int(row[0])
             closed = int(row[6])
             if opened != cursor or closed < opened + step - 2 or closed >= opened + step:
-                raise ValueError(f"{symbol} {interval}: missing, unclosed or misaligned candle")
+                raise ValueError(
+                    f"{symbol} {interval}: missing, unclosed or misaligned candle; "
+                    f"expected open={cursor}, received open={opened}, close={closed}"
+                )
             candle = {
                 "time": opened, "close": float(row[4]), "high": float(row[2]),
                 "low": float(row[3]), "volume": float(row[5])
@@ -68,26 +71,59 @@ def bars_for_range(session, symbol, interval, start, end, now_ms):
     return result
 
 
+def derive_hourly_from_fifteen(quarter_hours, start, end):
+    """Reconstruct exact 1h OHLCV from 4 consecutive real Binance.US 15m bars.
+
+    No prices are synthesized. A missing or incomplete quarter-hour fails closed.
+    This avoids relying on an inconsistent secondary 1h historical feed.
+    """
+    if (start < 0 or end <= start or start % H1 or end % H1
+            or not isinstance(quarter_hours, list)
+            or len(quarter_hours) != (end - start) // M15):
+        raise ValueError("Incomplete 15m source for hourly aggregation")
+    hours = []
+    for offset in range(0, len(quarter_hours), 4):
+        group = quarter_hours[offset:offset + 4]
+        opened = start + offset * M15
+        if len(group) != 4 or any(
+            bar["time"] != opened + index * M15
+            for index, bar in enumerate(group)
+        ):
+            raise ValueError(f"Missing 15m source candle for hour {opened}")
+        hours.append({
+            "time": opened,
+            "close": group[-1]["close"],
+            "high": max(bar["high"] for bar in group),
+            "low": min(bar["low"] for bar in group),
+            "volume": sum(bar["volume"] for bar in group)
+        })
+    return hours
+
+
 def download(days=30, session=None, now_ms=None):
     if type(days) is not int or days not in (7, 14, 30, 60, 90):
         raise ValueError("Historical days must be 7, 14, 30, 60 or 90")
     if now_ms is None:
         now_ms = int(time.time() * 1000)
-    # Lag one entire hour so even Binance.US lagged market data is fully closed.
+    # Lag one entire hour so the newest included bars are fully CLOSED.
     end = (now_ms // H1 - 1) * H1
     start = end - days * DAY
+    # Fetch 15m back far enough for 255 HOURS of indicator warmup.
+    # Derive hourly candles ONLY from complete 15m quartets, never fabricated.
+    warmup = start - 255 * H1
     market = {}
     client = session if session is not None else requests.Session()
     for symbol in SYMBOLS:
-        # 250 15m and 255 closed 1h bars, required for EMA-200 calculations.
-        # Endpoints are exclusive; overlap of the final hourly candle is unnecessary.
+        quarters = bars_for_range(client, symbol, "15m", warmup, end, now_ms)
+        hours = derive_hourly_from_fifteen(quarters, warmup, end)
         market[symbol] = {
-            "15m": bars_for_range(client, symbol, "15m", start - 255 * M15, end, now_ms),
-            "1h": bars_for_range(client, symbol, "1h", start - 255 * H1, end, now_ms)
+            "15m": quarters,
+            "1h": hours
         }
     return {
         "format_version": 1,
         "source": "Binance.US public spot klines",
+        "hourly_source": "Aggregated from 4 contiguous Binance.US 15m spot klines",
         "analysis_start_ms": start,
         "analysis_end_ms": end,
         "as_of_utc": datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc).isoformat(),

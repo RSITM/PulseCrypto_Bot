@@ -6,7 +6,7 @@ from v2_shadow import (FIVE, HOUR, FOUR_HOURS, V2Decision,
                        evaluate_v2_price_only, evaluate_v2)
 from v2a_backtest import validate, simulate_v2a, compare, stamp
 from v2a_history import DAY, WARMUP, download_5m, aggregate, history
-from tests.test_v2_shadow import histories as synthetic_histories, healthy_book, EVAL
+from test_v2_shadow import histories as synthetic_histories, healthy_book, EVAL
 
 END = int(datetime(2026, 9, 15, tzinfo=timezone.utc).timestamp() * 1000)
 

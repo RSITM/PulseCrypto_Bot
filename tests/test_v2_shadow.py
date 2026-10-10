@@ -88,7 +88,10 @@ class V2ShadowTests(unittest.TestCase):
 
     def test_15m_pullback_missing_blocks(self):
         h = histories()
-        h["15m"][-3]["low"] = h["15m"][-3]["close"] - 0.25
+        ema_support = ema([bar["close"] for bar in h["15m"]], 20)
+        for bar in h["15m"][-8:-1]:
+            # Ensure NONE of the preceding seven lows qualifies as a pullback.
+            bar["low"] = min(bar["low"], ema_support * 0.95)
         result = evaluate_v2("BTCUSDT", h, EVAL, healthy_book())
         self.assertEqual(result.action, "WAIT")
         self.assertIn("15M", result.reason)

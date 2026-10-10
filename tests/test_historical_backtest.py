@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import unittest
 
 from historical_backtest import replay, valid_levels, M15, H1
-from historical_candles import bars_for_range, download, derive_hourly_from_fifteen
+from historical_candles import bars_for_range, available_bars_for_range, download, derive_hourly_from_fifteen
 from signal_engine import Signal
 
 START = int(datetime(2026, 9, 1, tzinfo=timezone.utc).timestamp() * 1000)
@@ -189,6 +189,70 @@ class CandleDownloaderTests(unittest.TestCase):
             self.assertEqual(len(bars["1h"]), n // 4)
             self.assertEqual(bars["1h"][-1]["time"], end - H1)
             self.assertEqual(bars["1h"][-1]["close"], 100.0)
+
+
+    def test_sparse_exchange_candles_have_explicit_gap_records(self):
+        rows = [raw_row(i * M15) for i in (0, 1, 4, 5)]
+        session = FakeSession(rows)
+        actual, gaps = available_bars_for_range(session, "BTCUSDT", "15m",
+                                                0, 6 * M15, 15 * M15)
+        self.assertEqual([bar["time"] for bar in actual],
+                         [0, M15, 4 * M15, 5 * M15])
+        self.assertEqual(gaps, [{"start_ms": 2 * M15,
+                                 "end_exclusive_ms": 4 * M15,
+                                 "missing_candles": 2}])
+        self.assertEqual(len(session.calls), 1)
+
+    def test_small_warmup_gap_shifts_actual_window_with_full_disclosure(self):
+        days = 7
+        now_ms = START + 10 * H1
+        end = (now_ms // H1 - 1) * H1
+        requested_start = end - days * 24 * H1
+        warmup = requested_start - 255 * H1
+        n = (end - warmup) // M15
+        # Exclude a real 15m BTC candle 36h after the warmup begins.
+        missing = warmup + 36 * H1
+        rows = [raw_row(warmup + i * M15) for i in range(n)
+                if warmup + i * M15 != missing]
+        test_session = FakeSession(rows)
+        data = download(days=days, session=test_session, now_ms=now_ms)
+        cov = data["coverage"]
+        self.assertLess(cov["actual_days"], days)
+        self.assertGreaterEqual(cov["retained_pct"], 75)
+        self.assertEqual(cov["requested_days"], days)
+        self.assertEqual(data["requested_start_ms"], requested_start)
+        self.assertAlmostEqual(cov["trimmed_start_days"], 37 / 24, places=4)
+        self.assertEqual(data["analysis_start_ms"], requested_start + 37 * H1)
+        self.assertEqual(cov["gaps_in_requested_fetch"]["BTCUSDT"][0]["missing_candles"], 1)
+        for symbol in ("BTCUSDT", "ETHUSDT", "SOLUSDT"):
+            self.assertEqual(data["symbols"][symbol]["15m"][0]["time"],
+                             data["analysis_start_ms"] - 255 * H1)
+        report = replay(data, always_wait)
+        self.assertAlmostEqual(report["coverage"]["trimmed_start_days"], 37 / 24, places=4)
+        self.assertEqual(report["paper_entries"], 0)
+
+    def test_large_gap_fails_instead_of_reporting_biased_short_test(self):
+        days = 7
+        now_ms = START + 10 * H1
+        end = (now_ms // H1 - 1) * H1
+        warmup = end - days * 24 * H1 - 255 * H1
+        n = (end - warmup) // M15
+        # Cut the history 85h into warmup: less than 75% window survives.
+        missing = warmup + 85 * H1
+        rows = [raw_row(warmup + i * M15) for i in range(n)
+                if warmup + i * M15 != missing]
+        with self.assertRaisesRegex(ValueError, "Not enough continuous"):
+            download(days=days, session=FakeSession(rows), now_ms=now_ms)
+
+    def test_missing_most_recent_candle_refuses_a_stale_replay(self):
+        days = 7
+        now_ms = START + 10 * H1
+        end = (now_ms // H1 - 1) * H1
+        warmup = end - days * 24 * H1 - 255 * H1
+        n = (end - warmup) // M15
+        rows = [raw_row(warmup + i * M15) for i in range(n - 1)]
+        with self.assertRaisesRegex(ValueError, "Recent exchange candles unavailable"):
+            download(days=days, session=FakeSession(rows), now_ms=now_ms)
 
 
 if __name__ == "__main__":

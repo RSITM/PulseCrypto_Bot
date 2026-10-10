@@ -48,7 +48,29 @@ An audit with zero closed trades **cannot establish a win rate**. We must
 not loosen thresholds based on a single historical period; compare untouched
 out-of-sample periods before selecting any modifications.
 
-The workflow fails rather than silently continue on a missing 15m candle or
-unexpected data. Binance.US API availability and candle quality are external
-dependencies. Historical source files and outputs are stored as ephemeral
-GitHub Actions artifacts (7-day retention), not committed into the repository.
+## When Binance.US has gaps in historical 15m candles
+
+The first 30-day audit found a nine-hour gap in Binance.US BTCUSDT 15m
+history. We do **not** fill missing prices, assume that no stops would
+trigger in missing periods, or stitch simulations across a gap.
+
+The audit downloader now retrieves each actual candle and records explicit gap
+intervals and missing-candle counts in the saved JSON data. It selects only
+the most recent **common uninterrupted** interval across BTC, ETH and SOL,
+with another 255 complete hourly bars of indicator warmup.
+
+If that reduces the requested 7/14/30/60/90-day period, the report displays
+requested days, actually analyzed days, percentage retained, how much of the
+requested start was trimmed, and the missing historical candles. **This is a
+partial-window backtest**, not a complete test of the original requested
+period. Selecting the latest gap-free segment can introduce selection bias,
+so do not compare its performance directly with a complete-period audit.
+
+If fewer than **75%** of the requested days remain, or the most recent
+15-minute candle is unavailable, the workflow fails clearly instead of
+inventing results. A shorter period or a more complete historical data source
+is needed for a robust long-term study.
+
+Binance.US API availability and historical candle quality are external
+dependencies. Source files and reports are kept as ephemeral GitHub Actions
+artifacts (7-day retention), not committed to the repository.

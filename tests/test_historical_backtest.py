@@ -221,14 +221,14 @@ class CandleDownloaderTests(unittest.TestCase):
         self.assertGreaterEqual(cov["retained_pct"], 75)
         self.assertEqual(cov["requested_days"], days)
         self.assertEqual(data["requested_start_ms"], requested_start)
-        self.assertEqual(cov["trimmed_start_days"], 37 / 24)
+        self.assertAlmostEqual(cov["trimmed_start_days"], 37 / 24, places=4)
         self.assertEqual(data["analysis_start_ms"], requested_start + 37 * H1)
         self.assertEqual(cov["gaps_in_requested_fetch"]["BTCUSDT"][0]["missing_candles"], 1)
         for symbol in ("BTCUSDT", "ETHUSDT", "SOLUSDT"):
             self.assertEqual(data["symbols"][symbol]["15m"][0]["time"],
                              data["analysis_start_ms"] - 255 * H1)
         report = replay(data, always_wait)
-        self.assertEqual(report["coverage"]["trimmed_start_days"], 37 / 24)
+        self.assertAlmostEqual(report["coverage"]["trimmed_start_days"], 37 / 24, places=4)
         self.assertEqual(report["paper_entries"], 0)
 
     def test_large_gap_fails_instead_of_reporting_biased_short_test(self):

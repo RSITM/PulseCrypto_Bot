@@ -144,6 +144,7 @@ def replay(data, evaluator=evaluate):
     result = {
         "mode": "RESEARCH_ONLY_NO_LIVE_CHANGES",
         "source": data["source"],
+        "hourly_source": data.get("hourly_source", "Binance.US 1h spot klines"),
         "period": {"start": utc(start), "end_exclusive": utc(end),
                    "days": (end - start) / DAY},
         "markets": list(SYMBOLS),
@@ -188,6 +189,7 @@ def report_markdown(r):
         "",
         f'**Period:** {r["period"]["start"]} to {r["period"]["end_exclusive"]} (exclusive; {r["period"]["days"]:.0f} days)',
         f'**Market:** {r["source"]} — BTC, ETH and SOL, 15m closes + confirmed 1h trend',
+        f'**Hourly construction:** {r["hourly_source"]}',
         f'**Costs per side:** fee {r["assumed_fee_per_side_pct"]:.2f}%, adverse slippage {r["assumed_slippage_per_side_pct"]:.2f}%',
         "",
         "| Metric | Backtest |", "|---|---:|",

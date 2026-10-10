@@ -24,7 +24,7 @@ jobs:
   offline-v2a-research:
     name: Read-only V1 vs V2-A 5m Historical Research
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Check out main source
         uses: actions/checkout@v4
@@ -46,8 +46,17 @@ jobs:
             --data report_output/v2a-5m-history.json \
             --json report_output/V2A-Comparison.json \
             --markdown report_output/V2A-Comparison.md
-      - name: Display V1 vs V2-A results
-        run: cat report_output/V2A-Comparison.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Compare controlled V2-A variants and inspect losing trades
+        run: |
+          python v2a_diagnostics.py \
+            --data report_output/v2a-5m-history.json \
+            --json report_output/V2A-Diagnostics.json \
+            --markdown report_output/V2A-Diagnostics.md
+      - name: Display matched V1 comparison and V2-A diagnostics
+        run: |
+          cat report_output/V2A-Comparison.md >> "$GITHUB_STEP_SUMMARY"
+          printf '\n---\n\n' >> "$GITHUB_STEP_SUMMARY"
+          cat report_output/V2A-Diagnostics.md >> "$GITHUB_STEP_SUMMARY"
       - name: Archive reproducible data and comparison
         uses: actions/upload-artifact@v4
         with:

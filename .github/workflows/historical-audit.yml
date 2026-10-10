@@ -1,0 +1,58 @@
+name: PulseCrypto Historical Strategy Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Historical calendar days to audit (default 30)'
+        required: true
+        type: choice
+        default: '30'
+        options:
+          - '7'
+          - '14'
+          - '30'
+          - '60'
+          - '90'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pulsecrypto-historical-audit
+  cancel-in-progress: false
+
+jobs:
+  research-only:
+    name: Offline Historical Research (no account writes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout strategy source only
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research-only dependencies
+        run: python -m pip install requests
+      - name: Run regression tests before historical research
+        run: python -m unittest discover -s tests -v
+      - name: Download public CLOSED Binance.US historical candles
+        run: |
+          python historical_candles.py --days ${{ inputs.days }} --out report_output/ohlcv-history.json
+      - name: Replay existing signal rules offline with paper fee and slippage simulation
+        run: |
+          python historical_backtest.py \
+            --data report_output/ohlcv-history.json \
+            --markdown report_output/PulseCrypto-Historical-Audit.md \
+            --json report_output/PulseCrypto-Historical-Audit.json
+      - name: Show audit results in GitHub Actions summary
+        run: cat report_output/PulseCrypto-Historical-Audit.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save full historical dataset and audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulsecrypto-historical-research-${{ inputs.days }}-days
+          path: report_output/
+          retention-days: 7
+          if-no-files-found: error

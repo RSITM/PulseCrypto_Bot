@@ -18,7 +18,7 @@ The workflow is **not scheduled**: an audit happens only when manually requested
 
 ## What is replayed
 
-- BTCUSDT, ETHUSDT and SOLUSDT from publicly available Binance.US spot klines.
+- BTCUSDT, ETHUSDT and SOLUSDT from publicly available Binance.US **15m** spot klines. For this research audit, each 1h bar is formed from four consecutive validated 15m exchange bars (open time, high, low, final close, summed volume). We do not invent values or fill missing 15m bars. This avoids a historical data-feed discrepancy that caused the first audit run to fail.
 - Every 15-minute candle in the selected historical window, with **at least 250
   older 15m bars and 255 older hourly bars** for indicator warmup.
 - The **existing `signal_engine.evaluate()`** checks, in their current order:
@@ -48,7 +48,7 @@ An audit with zero closed trades **cannot establish a win rate**. We must
 not loosen thresholds based on a single historical period; compare untouched
 out-of-sample periods before selecting any modifications.
 
-The workflow fails rather than silently continue on a missing candle or
+The workflow fails rather than silently continue on a missing 15m candle or
 unexpected data. Binance.US API availability and candle quality are external
 dependencies. Historical source files and outputs are stored as ephemeral
 GitHub Actions artifacts (7-day retention), not committed into the repository.

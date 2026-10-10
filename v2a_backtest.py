@@ -110,6 +110,8 @@ def simulate_v2a(data, evaluator=evaluate_v2_price_only):
     }
     cash = PaperAccount()
     pending = {}
+    entry_context = {}  # only in-memory research audit, never production state
+    trade_forensics = []
     decisions = Counter()
     individual = {symbol: Counter() for symbol in SYMBOLS}
     positions_opened = 0
@@ -141,6 +143,24 @@ def simulate_v2a(data, evaluator=evaluate_v2_price_only):
                 outcome = cash.open_long(symbol, market_open,
                                          candidate.stop, candidate.target)
                 if outcome == "PAPER_BUY":
+                    pos = cash.positions[symbol]
+                    entry_context[symbol] = {
+                        "symbol": symbol,
+                        "signal_at_utc": stamp(candidate.evaluated_at_ms),
+                        "entered_at_utc": stamp(bar_time),
+                        "next_bar_open": market_open,
+                        "modeled_entry_fill": pos.entry,
+                        "stop": pos.stop,
+                        "target": pos.target,
+                        "gross_risk_to_stop_per_unit": pos.entry - pos.stop,
+                        "setup": candidate.setup,
+                        "bias": candidate.bias,
+                        "quantity": pos.quantity,
+                        "entry_fee_usd": pos.entry_fee,
+                        "entry_slippage_usd": (pos.entry - market_open) * pos.quantity,
+                        "max_observed_high": pos.entry,
+                        "min_observed_low": pos.entry,
+                    }
                     positions_opened += 1
                     if first_entry is None:
                         first_entry = stamp(bar_time)
@@ -157,7 +177,35 @@ def simulate_v2a(data, evaluator=evaluate_v2_price_only):
         for symbol in SYMBOLS:
             if symbol in cash.positions:
                 row = source_bars[symbol]
+                entry_context[symbol]["max_observed_high"] = max(
+                    entry_context[symbol]["max_observed_high"], row["high"])
+                entry_context[symbol]["min_observed_low"] = min(
+                    entry_context[symbol]["min_observed_low"], row["low"])
                 if cash.on_candle(symbol, row["low"], row["high"]) == "PAPER_SELL":
+                    trade = cash.trades[-1]
+                    context = entry_context.pop(symbol)
+                    # PaperAccount fills stops at the full candle low
+                    # (not the intended stop). Disclose this explicitly.
+                    stop_overshoot = max(context["stop"] - row["low"], 0)
+                    context.update({
+                        "closed_at_utc": stamp(bar_time + FIVE),
+                        "exit_reason": trade["reason"],
+                        "exit_bar_open": row["open"],
+                        "exit_bar_low": row["low"],
+                        "exit_bar_high": row["high"],
+                        "modeled_exit_fill": trade["exit"],
+                        "stop_overshoot_per_unit": stop_overshoot if trade["reason"] == "STOP" else 0,
+                        "stop_gap_at_open": row["open"] < context["stop"] if trade["reason"] == "STOP" else False,
+                        "net_pnl_usd": round(trade["net_pnl"], 6),
+                        "fees_usd": round(trade["entry_fee"] + trade["exit_fee"], 6),
+                        "max_favorable_move_pct": round(
+                            100 * (context["max_observed_high"] / context["modeled_entry_fill"] - 1), 4),
+                        "max_adverse_move_pct": round(
+                            100 * (context["min_observed_low"] / context["modeled_entry_fill"] - 1), 4),
+                    })
+                    # Range extremes have unknown intrabar ordering; do not
+                    # interpret excursions as actually executable profits.
+                    trade_forensics.append(context)
                     closed_here.add(symbol)
                     decisions["PAPER_SELL"] += 1
                     individual[symbol]["PAPER_SELL"] += 1
@@ -210,6 +258,14 @@ def simulate_v2a(data, evaluator=evaluate_v2_price_only):
         "rejections": dict(decisions),
         "by_symbol": {sym: dict(counts) for sym, counts in individual.items()},
         "trades": trades,
+        "trade_forensics": trade_forensics,
+        "trade_forensics_limitations": [
+            "5m high and low have no intrabar ordering.",
+            "Conservative stop execution uses the whole bar low, potentially "
+            "worse than the stop; the OHLC alone cannot prove executable fills.",
+            "Entry is modeled at actual next 5m bar open plus adverse slippage.",
+            "Fees/slippage are modeled assumptions, not verified exchange fills.",
+        ],
     }
 
 

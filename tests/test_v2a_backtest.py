@@ -67,11 +67,11 @@ class FiveMinuteHistoricalTests(unittest.TestCase):
         self.assertEqual(actual[-1]["open"], 100.)
 
     def test_gap_logged_but_never_filled(self):
-        rows = [kline(i * FIVE) for i in (0, 1, 4, 5)]
+        rows = [kline(i * FIVE) for i in (1, 2, 5, 6)]
         result, gaps = download_5m(FakeSession(rows), "BTCUSDT",
-                                   0, 6 * FIVE, 8 * FIVE)
+                                   FIVE, 7 * FIVE, 9 * FIVE)
         self.assertEqual(len(result), 4)
-        self.assertEqual(gaps, [{"start_ms": 2 * FIVE, "end_exclusive_ms": 4 * FIVE,
+        self.assertEqual(gaps, [{"start_ms": 3 * FIVE, "end_exclusive_ms": 5 * FIVE,
                                  "missing_5m": 2}])
 
     def test_aggregation_has_no_future_or_invented_candles(self):

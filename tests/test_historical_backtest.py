@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import unittest
 
 from historical_backtest import replay, valid_levels, M15, H1
-from historical_candles import bars_for_range, download
+from historical_candles import bars_for_range, download, derive_hourly_from_fifteen
 from signal_engine import Signal
 
 START = int(datetime(2026, 9, 1, tzinfo=timezone.utc).timestamp() * 1000)
@@ -144,6 +144,51 @@ class CandleDownloaderTests(unittest.TestCase):
     def test_only_predefined_audit_windows(self):
         with self.assertRaisesRegex(ValueError, "7, 14, 30, 60 or 90"):
             download(days=31, session=FakeSession([]), now_ms=START)
+
+
+    def test_hourly_aggregation_uses_only_four_real_closed_quarters(self):
+        quarters = [
+            {"time": i * M15, "close": 100 + i, "high": 102 + i,
+             "low": 99 + i, "volume": 2.0 + i}
+            for i in range(8)
+        ]
+        hours = derive_hourly_from_fifteen(quarters, 0, 2 * H1)
+        self.assertEqual(len(hours), 2)
+        self.assertEqual(hours[0],
+                         {"time": 0, "close": 103, "high": 105,
+                          "low": 99, "volume": 14.0})
+        self.assertEqual(hours[1]["time"], H1)
+        self.assertEqual(hours[1]["close"], 107)
+        self.assertEqual(hours[1]["high"], 109)
+        self.assertEqual(hours[1]["low"], 103)
+        self.assertEqual(hours[1]["volume"], 30.0)
+
+    def test_hourly_aggregation_rejects_missing_quarter(self):
+        quarters = [candle(i * M15, 100) for i in range(4)]
+        quarters[2]["time"] = 3 * M15
+        with self.assertRaisesRegex(ValueError, "Missing 15m source"):
+            derive_hourly_from_fifteen(quarters, 0, H1)
+        with self.assertRaisesRegex(ValueError, "Incomplete 15m source"):
+            derive_hourly_from_fifteen(quarters[:3], 0, H1)
+
+    def test_download_uses_only_15m_feed_and_replays_30day_history(self):
+        days = 7
+        now_ms = START + 10 * H1
+        end = (now_ms // H1 - 1) * H1
+        beginning = end - days * 24 * H1 - 255 * H1
+        n = (end - beginning) // M15
+        session = FakeSession([raw_row(beginning + i * M15) for i in range(n)])
+        recorded = download(days=days, session=session, now_ms=now_ms)
+        self.assertEqual(recorded["analysis_end_ms"], end)
+        self.assertIn("Aggregated", recorded["hourly_source"])
+        self.assertTrue(all(call["interval"] == "15m" for call in session.calls))
+        self.assertGreater(len(session.calls), 1)
+        for symbol in ("BTCUSDT", "ETHUSDT", "SOLUSDT"):
+            bars = recorded["symbols"][symbol]
+            self.assertEqual(len(bars["15m"]), n)
+            self.assertEqual(len(bars["1h"]), n // 4)
+            self.assertEqual(bars["1h"][-1]["time"], end - H1)
+            self.assertEqual(bars["1h"][-1]["close"], 100.0)
 
 
 if __name__ == "__main__":

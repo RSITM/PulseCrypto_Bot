@@ -61,6 +61,16 @@ def replay(data, evaluator=evaluate):
     if (type(start) is not int or type(end) is not int or start < 1
             or start % M15 or end % M15 or end <= start or end - start > 90 * DAY):
         raise ValueError("Invalid backtest date range")
+    coverage = data.get("coverage")
+    if coverage is not None:
+        if (not isinstance(coverage, dict)
+                or not isinstance(coverage.get("requested_days"), int)
+                or coverage["requested_days"] not in (7, 14, 30, 60, 90)
+                or type(data.get("requested_start_ms")) is not int
+                or data["requested_start_ms"] > start
+                or end - data["requested_start_ms"] != coverage["requested_days"] * DAY
+                or end - start < 0.75 * (end - data["requested_start_ms"])):
+            raise ValueError("Invalid or insufficient historical coverage metadata")
     markets = data.get("symbols")
     if not isinstance(markets, dict) or set(markets) != set(SYMBOLS):
         raise ValueError("Expected BTC, ETH and SOL market histories")
@@ -145,6 +155,7 @@ def replay(data, evaluator=evaluate):
         "mode": "RESEARCH_ONLY_NO_LIVE_CHANGES",
         "source": data["source"],
         "hourly_source": data.get("hourly_source", "Binance.US 1h spot klines"),
+        "coverage": coverage,
         "period": {"start": utc(start), "end_exclusive": utc(end),
                    "days": (end - start) / DAY},
         "markets": list(SYMBOLS),
@@ -190,6 +201,28 @@ def report_markdown(r):
         f'**Period:** {r["period"]["start"]} to {r["period"]["end_exclusive"]} (exclusive; {r["period"]["days"]:.0f} days)',
         f'**Market:** {r["source"]} — BTC, ETH and SOL, 15m closes + confirmed 1h trend',
         f'**Hourly construction:** {r["hourly_source"]}',
+        "**Note:** The backtest will **not** pretend missing exchange candles existed.",
+    ]
+    if r["coverage"] is not None:
+        cov = r["coverage"]
+        gap_count = sum(len(gaps) for gaps in cov["gaps_in_requested_fetch"].values())
+        lines += [
+            "",
+            "## Historical-data coverage",
+            "",
+            f'**Requested:** {cov["requested_days"]} calendar days',
+            f'**Usable common, uninterrupted window:** {cov["actual_days"]:.2f} days ({cov["retained_pct"]:.2f}% retained)',
+            f'**Excluded start:** {cov["trimmed_start_days"]:.2f} days (includes required 255-hour indicator warmup after gaps)',
+            f'**Gaps detected in original fetch:** {gap_count} (across BTC, ETH, SOL)',
+            "**Selection warning:** Results reflect only the most recent shared gap-free segment, "
+            "**not the entire requested historical window**. Selection may bias outcomes.",
+        ]
+        for symbol, gaps in cov["gaps_in_requested_fetch"].items():
+            if gaps:
+                count = sum(g["missing_candles"] for g in gaps)
+                lines.append(f'- {symbol}: {len(gaps)} gap(s), {count} absent 15m candles in the requested download')
+    lines += [
+
         f'**Costs per side:** fee {r["assumed_fee_per_side_pct"]:.2f}%, adverse slippage {r["assumed_slippage_per_side_pct"]:.2f}%',
         "",
         "| Metric | Backtest |", "|---|---:|",

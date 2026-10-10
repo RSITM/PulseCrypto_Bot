@@ -20,7 +20,14 @@ DAY = 86_400_000
 INTERVAL_MS = {"15m": M15, "1h": H1}
 
 
-def bars_for_range(session, symbol, interval, start, end, now_ms):
+
+def available_bars_for_range(session, symbol, interval, start, end, now_ms):
+    """Fetch exchange bars *as provided*, reporting real gaps, never filling them.
+
+    A gap means there were no exchange kline rows for the specified timestamps.
+    Unordered/invalid bars are always rejected. The caller decides whether there
+    is a sufficiently long uninterrupted segment to support an honest replay.
+    """
     if symbol not in SYMBOLS or interval not in INTERVAL_MS:
         raise ValueError("Unknown market or interval")
     step = INTERVAL_MS[interval]
@@ -30,7 +37,7 @@ def bars_for_range(session, symbol, interval, start, end, now_ms):
         raise ValueError("Historical series must end at a previously closed candle")
     if (end - start) // step > 13_000:
         raise ValueError("Historical request too large")
-    result = []
+    result, gaps = [], []
     cursor = start
     while cursor < end:
         params = {"symbol": symbol, "interval": interval, "startTime": cursor,
@@ -38,37 +45,50 @@ def bars_for_range(session, symbol, interval, start, end, now_ms):
         response = session.get(BASE_URL, params=params, timeout=25)
         response.raise_for_status()
         payload = response.json()
-        if not isinstance(payload, list) or not payload:
-            raise ValueError(f"{symbol} {interval}: no candles from exchange")
+        if not isinstance(payload, list) or len(payload) > 1000:
+            raise ValueError(f"{symbol} {interval}: invalid exchange response")
+        if not payload:
+            gaps.append({"start_ms": cursor, "end_exclusive_ms": end,
+                         "missing_candles": (end - cursor) // step})
+            break
         for row in payload:
             if not isinstance(row, list) or len(row) < 7:
                 raise ValueError(f"{symbol} {interval}: invalid Binance.US kline")
-            opened = int(row[0])
-            closed = int(row[6])
-            if opened != cursor or closed < opened + step - 2 or closed >= opened + step:
+            opened, closed = int(row[0]), int(row[6])
+            if (opened < cursor or opened >= end or opened % step
+                    or closed < opened + step - 2 or closed >= opened + step):
                 raise ValueError(
-                    f"{symbol} {interval}: missing, unclosed or misaligned candle; "
-                    f"expected open={cursor}, received open={opened}, close={closed}"
+                    f"{symbol} {interval}: unclosed or misaligned candle; "
+                    f"expected >= {cursor}, received open={opened}, close={closed}"
                 )
+            if opened > cursor:
+                gaps.append({"start_ms": cursor, "end_exclusive_ms": opened,
+                             "missing_candles": (opened - cursor) // step})
             candle = {
                 "time": opened, "close": float(row[4]), "high": float(row[2]),
                 "low": float(row[3]), "volume": float(row[5])
             }
-            numbers = [candle[k] for k in ("close", "high", "low", "volume")]
+            numbers = [candle[key] for key in ("close", "high", "low", "volume")]
             if (any(not math.isfinite(v) for v in numbers) or candle["low"] <= 0
                     or not candle["low"] <= candle["close"] <= candle["high"]
                     or candle["volume"] < 0):
                 raise ValueError(f"{symbol} {interval}: invalid OHLCV values")
             result.append(candle)
-            cursor += step
-            if cursor >= end:
-                break
-        # Binance.US returns at most 1000 bars. This must progress, even on errors.
-        if len(payload) > 1000:
-            raise ValueError("Exchange exceeded max page size")
-    if len(result) != (end - start) // step:
-        raise ValueError(f"{symbol} {interval}: incomplete history")
-    return result
+            cursor = opened + step
+    return result, gaps
+
+
+def bars_for_range(session, symbol, interval, start, end, now_ms):
+    """Strict compatibility helper: refuse any gaps instead of making fake bars."""
+    rows, gaps = available_bars_for_range(
+        session, symbol, interval, start, end, now_ms)
+    if gaps:
+        first = gaps[0]
+        raise ValueError(
+            f"{symbol} {interval}: missing {first['missing_candles']} candles "
+            f"from {first['start_ms']} to {first['end_exclusive_ms']}"
+        )
+    return rows
 
 
 def derive_hourly_from_fifteen(quarter_hours, start, end):

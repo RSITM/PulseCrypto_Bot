@@ -1,0 +1,57 @@
+name: PulseCrypto V2-A 5m Historical Comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Common historical period for V1 and V2-A (default 7)'
+        required: true
+        type: choice
+        default: '7'
+        options:
+          - '7'
+          - '14'
+          - '30'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pulsecrypto-v2a-historical-research
+  cancel-in-progress: false
+
+jobs:
+  offline-v2a-research:
+    name: Read-only V1 vs V2-A 5m Historical Research
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out main source
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install public-data-only research dependency
+        run: python -m pip install requests
+      - name: Run all offline regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Download gap-validated public BTC ETH SOL 5m candles
+        run: |
+          python v2a_history.py --days ${{ inputs.days }} \
+            --out report_output/v2a-5m-history.json
+      - name: Compare V1 with V2-A on exact same market window
+        run: |
+          python v2a_backtest.py \
+            --data report_output/v2a-5m-history.json \
+            --json report_output/V2A-Comparison.json \
+            --markdown report_output/V2A-Comparison.md
+      - name: Display V1 vs V2-A results
+        run: cat report_output/V2A-Comparison.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive reproducible data and comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulsecrypto-v2a-historical-${{ inputs.days }}-days
+          path: report_output/
+          retention-days: 7
+          if-no-files-found: error

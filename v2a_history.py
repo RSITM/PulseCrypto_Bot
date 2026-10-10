@@ -20,14 +20,63 @@ WARMUP = 72 * FOUR_HOURS  # Also provides the 252h warmup required by V1.
 DAYS_ALLOWED = (7, 14, 30)
 
 
-def download_5m(session, symbol, start_ms, end_ms, now_ms):
+MINUTE = 60_000
+MAX_1M_REBUILDS_PER_SYMBOL = 40
+
+
+def checked_candle(row, opened, step_ms):
+    """Validate real OHLCV; no simulated prices and no future candle content."""
+    if not isinstance(row, list) or len(row) < 7:
+        raise ValueError("Malformed Binance.US kline")
+    if int(row[0]) != opened or int(row[6]) != opened + step_ms - 1:
+        raise ValueError("Historical kline lacks a complete aligned interval")
+    candle = {"time": opened, "open": float(row[1]),
+              "high": float(row[2]), "low": float(row[3]),
+              "close": float(row[4]), "volume": float(row[5])}
+    prices = [candle[key] for key in ("open", "high", "low", "close")]
+    if (not all(isfinite(v) and v > 0 for v in prices)
+            or candle["low"] > min(candle["open"], candle["close"])
+            or max(candle["open"], candle["close"]) > candle["high"]
+            or not isfinite(candle["volume"]) or candle["volume"] < 0):
+        raise ValueError("Invalid Binance.US historical OHLCV")
+    return candle
+
+
+def reconstruct_from_real_one_minute_bars(session, symbol, opened):
+    """Try recovering a malformed 5m candle from FIVE actual 1m exchange rows.
+
+    No extrapolation, interpolation, forward-filling or synthetic data.
+    An incomplete or malformed 1m response is NOT usable and returns None.
+    Transport/HTTP errors still fail visibly rather than hiding an outage.
+    """
+    params = {"symbol": symbol, "interval": "1m", "startTime": opened,
+              "endTime": opened + FIVE - 1, "limit": 5}
+    response = session.get(BASE_URL, params=params, timeout=25)
+    response.raise_for_status()
+    rows = response.json()
+    if not isinstance(rows, list) or len(rows) != 5:
+        return None
+    minutes = []
+    for index, row in enumerate(rows):
+        try:
+            minutes.append(checked_candle(row, opened + index * MINUTE, MINUTE))
+        except (ValueError, TypeError, OverflowError):
+            return None
+    return {"time": opened, "open": minutes[0]["open"],
+            "high": max(r["high"] for r in minutes),
+            "low": min(r["low"] for r in minutes),
+            "close": minutes[-1]["close"],
+            "volume": sum(r["volume"] for r in minutes)}
+
+
+def download_5m(session, symbol, start_ms, end_ms, now_ms, *, with_repairs=False):
     if symbol not in SYMBOLS or start_ms < 0 or not 0 < start_ms < end_ms:
         raise ValueError("Invalid symbol/time range")
     if start_ms % FIVE or end_ms % FIVE or end_ms > now_ms - FIVE:
         raise ValueError("History must be aligned and previously closed")
     if (end_ms - start_ms) // FIVE > 13_000:
         raise ValueError("Historical range too large")
-    bars, gaps = [], []
+    bars, gaps, repairs = [], [], []
     cursor = start_ms
     while cursor < end_ms:
         params = {"symbol": symbol, "interval": "5m", "startTime": cursor,
@@ -45,24 +94,40 @@ def download_5m(session, symbol, start_ms, end_ms, now_ms):
             if not isinstance(row, list) or len(row) < 7:
                 raise ValueError("Malformed Binance.US 5m kline")
             opened, closed = int(row[0]), int(row[6])
-            if (opened < cursor or opened >= end_ms or opened % FIVE or
-                    closed != opened + FIVE - 1):
-                raise ValueError(f"{symbol}: unclosed, duplicate, or unaligned 5m bar "
+            if opened < cursor or opened >= end_ms or opened % FIVE:
+                raise ValueError(f"{symbol}: duplicate, future or unaligned 5m bar "
                                  f"open={opened} cursor={cursor} close={closed}")
             if opened > cursor:
                 gaps.append({"start_ms": cursor, "end_exclusive_ms": opened,
-                             "missing_5m": (opened - cursor) // FIVE})
-            values = {"time": opened, "open": float(row[1]),
-                      "high": float(row[2]), "low": float(row[3]),
-                      "close": float(row[4]), "volume": float(row[5])}
-            prices = [values[k] for k in ("open", "high", "low", "close")]
-            if (not all(isfinite(v) and v > 0 for v in prices)
-                    or not values["low"] <= min(values["open"], values["close"])
-                    or max(values["open"], values["close"]) > values["high"]
-                    or not isfinite(values["volume"]) or values["volume"] < 0):
-                raise ValueError(f"{symbol}: invalid 5m OHLCV")
-            bars.append(values)
+                             "missing_5m": (opened - cursor) // FIVE,
+                             "reason": "exchange_missing_5m"})
+            if closed != opened + FIVE - 1:
+                # The exchange sometimes reports a 5m kline whose close
+                # timestamp is only ~1 minute after its open. This is NOT a
+                # verified full 5-minute candle. Rebuild from FIVE real,
+                # continuous, validated Binance.US 1m klines if possible.
+                if len(repairs) >= MAX_1M_REBUILDS_PER_SYMBOL:
+                    raise ValueError(f"{symbol}: too many malformed five-minute "
+                                     "exchange candles; refusing bulk reconstruction")
+                reconstructed = reconstruct_from_real_one_minute_bars(
+                    session, symbol, opened
+                )
+                if reconstructed is None:
+                    gaps.append({"start_ms": opened,
+                                 "end_exclusive_ms": opened + FIVE,
+                                 "missing_5m": 1,
+                                 "reason": "invalid_5m_close_and_no_complete_1m_rebuild",
+                                 "reported_close_ms": closed})
+                else:
+                    bars.append(reconstructed)
+                    repairs.append({"open_ms": opened,
+                                    "original_5m_close_ms": closed,
+                                    "source": "five complete Binance.US 1m klines"})
+            else:
+                bars.append(checked_candle(row, opened, FIVE))
             cursor = opened + FIVE
+    if with_repairs:
+        return bars, gaps, repairs
     return bars, gaps
 
 
@@ -110,10 +175,11 @@ def history(days=30, session=None, now_ms=None):
     requested_start = end - days * DAY
     fetch_start = requested_start - WARMUP
     client = session if session is not None else requests.Session()
-    all_rows, gaps, starts = {}, {}, {}
+    all_rows, gaps, repairs, starts = {}, {}, {}, {}
     for symbol in SYMBOLS:
-        bars, missing = download_5m(client, symbol, fetch_start, end, now_ms)
-        all_rows[symbol], gaps[symbol] = bars, missing
+        bars, missing, reconstructed = download_5m(
+            client, symbol, fetch_start, end, now_ms, with_repairs=True)
+        all_rows[symbol], gaps[symbol], repairs[symbol] = bars, missing, reconstructed
         starts[symbol] = contiguous_start(bars, end)
 
     latest_start = max(starts.values())
@@ -147,7 +213,8 @@ def history(days=30, session=None, now_ms=None):
             "retained_pct": round(100 * usable_days / days, 2),
             "trimmed_start_days": round((analysis_start - requested_start) / DAY, 4),
             "selection": "Same shared gap-free 5m trailing segment for all three markets",
-            "gaps": gaps
+            "gaps": gaps,
+            "reconstructed_from_verified_1m": repairs
         },
         "as_of_utc": datetime.fromtimestamp(now_ms / 1000, timezone.utc).isoformat(),
         "symbols": markets

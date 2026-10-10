@@ -120,32 +120,91 @@ def derive_hourly_from_fifteen(quarter_hours, start, end):
     return hours
 
 
+
+def latest_contiguous_tail(rows, interval, expected_end):
+    """Return start of final gap-free suffix, or fail if last bar absent."""
+    step = INTERVAL_MS[interval]
+    if not rows or rows[-1]["time"] != expected_end - step:
+        raise ValueError("Recent exchange candles unavailable; refusing stale backtest")
+    first = rows[-1]["time"]
+    for older in reversed(rows[:-1]):
+        if older["time"] != first - step:
+            break
+        first = older["time"]
+    return first
+
+
 def download(days=30, session=None, now_ms=None):
     if type(days) is not int or days not in (7, 14, 30, 60, 90):
         raise ValueError("Historical days must be 7, 14, 30, 60 or 90")
     if now_ms is None:
         now_ms = int(time.time() * 1000)
-    # Lag one entire hour so the newest included bars are fully CLOSED.
+    # Lag one full hour so all captured bars are fully closed.
     end = (now_ms // H1 - 1) * H1
-    start = end - days * DAY
-    # Fetch 15m back far enough for 255 HOURS of indicator warmup.
-    # Derive hourly candles ONLY from complete 15m quartets, never fabricated.
-    warmup = start - 255 * H1
-    market = {}
+    requested_start = end - days * DAY
+    warmup_start = requested_start - 255 * H1
     client = session if session is not None else requests.Session()
+    available, by_symbol_gaps, tail_starts = {}, {}, {}
     for symbol in SYMBOLS:
-        quarters = bars_for_range(client, symbol, "15m", warmup, end, now_ms)
-        hours = derive_hourly_from_fifteen(quarters, warmup, end)
+        rows, gaps = available_bars_for_range(
+            client, symbol, "15m", warmup_start, end, now_ms)
+        available[symbol] = rows
+        by_symbol_gaps[symbol] = gaps
+        tail_starts[symbol] = latest_contiguous_tail(rows, "15m", end)
+
+    # Research must use exactly the same time range for all markets. Only the
+    # trailing, gap-free, shared period can be replayed safely.
+    common_tail = max(tail_starts.values())
+    first_eligible = common_tail + 255 * H1
+    # Align study boundaries on hourly bar opens for exact 1h aggregation.
+    first_eligible = ((first_eligible + H1 - 1) // H1) * H1
+    actual_start = max(requested_start, first_eligible)
+    actual_days = (end - actual_start) / DAY
+    min_days = days * 0.75
+    if actual_days < min_days:
+        raise ValueError(
+            f"Not enough continuous BTC/ETH/SOL history for an honest audit: "
+            f"requested {days}d, only {actual_days:.2f}d usable "
+            f"after 255h EMA warmup; need >= {min_days:.2f}d. "
+            f"First common complete 15m candle: {common_tail}; "
+            "will not forward-fill prices or hide missing trading periods."
+        )
+    if actual_start >= end:
+        raise ValueError("No available safe history after hourly warmup")
+
+    clean_warmup = actual_start - 255 * H1
+    market = {}
+    for symbol in SYMBOLS:
+        # Only use the shared gap-free tail. Do NOT merge data across a gap.
+        quarters = [r for r in available[symbol]
+                    if clean_warmup <= r["time"] < end]
+        expected = (end - clean_warmup) // M15
+        if (len(quarters) != expected
+                or quarters[0]["time"] != clean_warmup
+                or quarters[-1]["time"] != end - M15):
+            raise ValueError(
+                f"{symbol}: shared uninterrupted interval incomplete; refusing audit"
+            )
         market[symbol] = {
             "15m": quarters,
-            "1h": hours
+            "1h": derive_hourly_from_fifteen(quarters, clean_warmup, end)
         }
     return {
         "format_version": 1,
         "source": "Binance.US public spot klines",
         "hourly_source": "Aggregated from 4 contiguous Binance.US 15m spot klines",
-        "analysis_start_ms": start,
+        "requested_start_ms": requested_start,
+        "analysis_start_ms": actual_start,
         "analysis_end_ms": end,
+        "coverage": {
+            "requested_days": days,
+            "actual_days": round(actual_days, 4),
+            "retained_pct": round(100 * actual_days / days, 2),
+            "trimmed_start_days": round((actual_start - requested_start) / DAY, 4),
+            "minimum_retained_pct": 75,
+            "selection": "Latest continuous common BTC/ETH/SOL tail after 255h warmup",
+            "gaps_in_requested_fetch": by_symbol_gaps
+        },
         "as_of_utc": datetime.fromtimestamp(now_ms / 1000, tz=timezone.utc).isoformat(),
         "symbols": market
     }

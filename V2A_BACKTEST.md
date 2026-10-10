@@ -36,9 +36,19 @@ are used.
 - V1 retains its original 15m signal and simulated fill behavior.
   Consequently this is a matched-PERIOD comparison, not an identical
   execution model.
-- Missing candles are never forward filled. Use the latest shared gap-free
-  interval, with a minimum 75% of the requested days retained. Shortened
-  periods create selection bias and are disclosed in results.
+- **Binance.US occasionally reports malformed 5m bar close timestamps** (for
+  example, 60 seconds instead of the required 299.999 seconds). Those 5m rows
+  cannot be trusted as complete. The downloader requests the exact five real
+  public 1m exchange candles for each affected 5m slot, checks that all five
+  are consecutive, aligned, fully closed, and contain valid OHLCV, then
+  aggregates open / high / low / close / sum(volume). These are actual exchange
+  prices, not interpolated prices or artificial candles. Each reconstruction
+  is logged in the downloaded data and GitHub report.
+- When the 1m recovery is incomplete or invalid, the affected 5m interval
+  is classified as missing. Missing candles are **never forward filled**.
+  Use the latest shared gap-free interval after full warmup, with a minimum
+  75% of the requested days retained. Shortened periods introduce selection
+  bias and are disclosed. If the threshold cannot be met, the run fails.
 
 ## Interpretation and future work
 

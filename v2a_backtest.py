@@ -270,6 +270,27 @@ def markdown(result):
         f'**Usable duration:** {result["market_period"]["actual_days"]:.2f} days '
         f'of {result["market_period"]["requested_days"]} requested',
         "",
+        "## Verified market-data quality",
+        "",
+    ]
+    coverage = result["coverage"]
+    reconstructed = coverage.get("reconstructed_from_verified_1m", {})
+    detected_gaps = coverage.get("gaps", {})
+    for symbol in SYMBOLS:
+        repaired = reconstructed.get(symbol, [])
+        missing = detected_gaps.get(symbol, [])
+        lines.append(f'- {symbol}: {len(repaired)} malformed 5m candle(s) '
+                     f'reconstructed from real complete 1m bars; '
+                     f'{len(missing)} gap(s) detected; '
+                     f'{sum(g.get("missing_5m", 0) for g in missing)} unavailable 5m intervals')
+    lines += [
+        "",
+        f'**Period retained:** {coverage.get("retained_pct", 100):.2f}% '
+        f'({coverage.get("trimmed_start_days", 0):.2f} days trimmed from requested start).',
+        "Malformed 5m close timestamps are **not trusted**. A reconstruction "
+        "requires all five real exchange 1m OHLCV bars. Otherwise that 5m period "
+        "is treated as a genuine gap and excluded from the tested continuous window.",
+        "",
         "| Metric | V1 control | V2-A 5m candle-only |",
         "|---|---:|---:|",
         f'| Entries | {v1["paper_entries"]} | {v2["paper_entries"]} |',

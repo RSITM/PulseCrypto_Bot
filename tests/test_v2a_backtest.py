@@ -5,7 +5,7 @@ import unittest
 from v2_shadow import (FIVE, HOUR, FOUR_HOURS, V2Decision,
                        evaluate_v2_price_only, evaluate_v2)
 from v2a_backtest import validate, simulate_v2a, compare, stamp
-from v2a_history import DAY, WARMUP, download_5m, aggregate, history
+from v2a_history import DAY, WARMUP, MINUTE, download_5m, aggregate, history
 from test_v2_shadow import histories as synthetic_histories, healthy_book, EVAL
 
 END = int(datetime(2026, 9, 15, tzinfo=timezone.utc).timestamp() * 1000)
@@ -55,6 +55,20 @@ class FakeSession:
             [:params["limit"]])
 
 
+class MixedTimeframeSession(FakeSession):
+    """Deterministic responses for 5m and separate 1m reconstruction data."""
+    def __init__(self, five_minute_rows, one_minute_rows):
+        super().__init__(five_minute_rows)
+        self.one_minute_rows = one_minute_rows
+
+    def get(self, url, params, timeout):
+        self.calls.append(dict(params))
+        source = self.one_minute_rows if params["interval"] == "1m" else self.rows
+        return FakeResponse([x for x in source
+                             if params["startTime"] <= x[0] <= params["endTime"]]
+                            [:params["limit"]])
+
+
 class FiveMinuteHistoricalTests(unittest.TestCase):
     def test_pagination_and_confirmed_history(self):
         rows = [kline(i * FIVE) for i in range(1021)]
@@ -72,7 +86,81 @@ class FiveMinuteHistoricalTests(unittest.TestCase):
                                    FIVE, 7 * FIVE, 9 * FIVE)
         self.assertEqual(len(result), 4)
         self.assertEqual(gaps, [{"start_ms": 3 * FIVE, "end_exclusive_ms": 5 * FIVE,
-                                 "missing_5m": 2}])
+                                 "missing_5m": 2, "reason": "exchange_missing_5m"}])
+
+    def test_rebuild_truncated_five_minute_close_from_real_one_minute_history(self):
+        opened = 4 * FIVE
+        five_rows = [kline(3 * FIVE), kline(opened), kline(5 * FIVE)]
+        five_rows[1][6] = opened + MINUTE  # Reported GitHub failure: ~60s close
+        minute_rows = [kline(opened + i * MINUTE, 100 + i, MINUTE)
+                       for i in range(5)]
+        session = MixedTimeframeSession(five_rows, minute_rows)
+        bars, gaps, repairs = download_5m(
+            session, "BTCUSDT", 3 * FIVE, 6 * FIVE, 9 * FIVE,
+            with_repairs=True)
+        self.assertEqual(gaps, [])
+        self.assertEqual(len(bars), 3)
+        self.assertEqual(bars[1]["time"], opened)
+        self.assertEqual(bars[1]["open"], 100)
+        self.assertEqual(bars[1]["close"], 104)
+        self.assertAlmostEqual(bars[1]["high"], 104.2)
+        self.assertAlmostEqual(bars[1]["low"], 99.8)
+        self.assertEqual(bars[1]["volume"], 50.0)
+        self.assertEqual(repairs[0]["open_ms"], opened)
+        self.assertEqual(len([r for r in session.calls
+                              if r["interval"] == "1m"]), 1)
+
+    def test_unrecoverable_short_five_minute_row_is_recorded_as_gap(self):
+        opened = 4 * FIVE
+        five_rows = [kline(3 * FIVE), kline(opened), kline(5 * FIVE)]
+        five_rows[1][6] = opened + MINUTE
+        minute_rows = [kline(opened + i * MINUTE, 100 + i, MINUTE)
+                       for i in (0, 1, 3, 4)]
+        session = MixedTimeframeSession(five_rows, minute_rows)
+        bars, gaps, repairs = download_5m(
+            session, "BTCUSDT", 3 * FIVE, 6 * FIVE, 9 * FIVE,
+            with_repairs=True)
+        self.assertEqual(len(bars), 2)
+        self.assertEqual(repairs, [])
+        self.assertEqual(gaps, [{
+            "start_ms": opened, "end_exclusive_ms": opened + FIVE,
+            "missing_5m": 1,
+            "reason": "invalid_5m_close_and_no_complete_1m_rebuild",
+            "reported_close_ms": opened + MINUTE
+        }])
+
+    def test_reject_misaligned_or_invalid_one_minute_rebuild(self):
+        opened = 3 * FIVE
+        five_rows = [kline(opened)]
+        five_rows[0][6] = opened + MINUTE
+        minute_rows = [kline(opened + i * MINUTE, 100 + i, MINUTE)
+                       for i in range(5)]
+        minute_rows[3][6] = minute_rows[3][0] + 30_000
+        session = MixedTimeframeSession(five_rows, minute_rows)
+        rows, gaps, repairs = download_5m(
+            session, "BTCUSDT", opened, opened + FIVE,
+            opened + 3 * FIVE, with_repairs=True)
+        self.assertEqual(rows, [])
+        self.assertEqual(repairs, [])
+        self.assertEqual(gaps[0]["missing_5m"], 1)
+
+    def test_rebuilt_candle_can_preserve_entire_shared_window(self):
+        end = END
+        now_ms = end + FOUR_HOURS
+        warmup = end - 7 * DAY - WARMUP
+        opening = warmup + 2 * FOUR_HOURS
+        five_rows = [kline(t) for t in range(warmup, end, FIVE)]
+        five_rows[(opening - warmup) // FIVE][6] = opening + MINUTE
+        minute_rows = [kline(opening + i * MINUTE, 100, MINUTE)
+                       for i in range(5)]
+        data = history(7, session=MixedTimeframeSession(five_rows, minute_rows),
+                       now_ms=now_ms)
+        self.assertEqual(data["coverage"]["actual_days"], 7)
+        self.assertEqual(data["coverage"]["retained_pct"], 100)
+        self.assertEqual(data["coverage"]["gaps"]["BTCUSDT"], [])
+        self.assertEqual(len(data["coverage"]["reconstructed_from_verified_1m"]["BTCUSDT"]), 1)
+        self.assertEqual(len(data["coverage"]["reconstructed_from_verified_1m"]["ETHUSDT"]), 1)
+        self.assertEqual(len(data["coverage"]["reconstructed_from_verified_1m"]["SOLUSDT"]), 1)
 
     def test_aggregation_has_no_future_or_invented_candles(self):
         rows = [raw(i*FIVE, float(100+i)) for i in range(12)]

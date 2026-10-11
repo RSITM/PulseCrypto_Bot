@@ -11,7 +11,7 @@ from v2b_forward import (
     sample_recent_public_trades, summarize, load_closed_four_timeframes,
     FORWARD_LAG_MAX_MS,
 )
-from v2b_archive import append_snapshot, validate_observation, read_day
+from v2b_archive import append_snapshot, validate_observation, read_day, observation_coverage
 from test_v2_shadow import EVAL, histories, healthy_book
 
 SAMPLED_AT = EVAL + 60_000
@@ -183,6 +183,51 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(len(archive), 1)
             self.assertEqual(len(read_day(archive[0])), 1)
             self.assertEqual(len(list(out.glob("manifest.json"))), 1)
+
+    def test_distinct_five_minute_slots_drive_coverage_not_run_count(self):
+        base = self.record(SAMPLED_AT)
+        later = self.record(SAMPLED_AT + 2 * FIVE)
+        self.assertEqual(observation_coverage([])["expected_five_minute_slots"], 0)
+        self.assertEqual(observation_coverage([base, later]), {
+            "expected_five_minute_slots": 3,
+            "observed_five_minute_slots": 2,
+            "missing_five_minute_slots": 1,
+            "observed_pct": 66.67,
+        })
+
+    def test_two_triggers_same_closed_five_minute_candle_not_double_counted(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            snapshot = root / "sample.json"
+            out = root / "branch"
+            latest = self.record(SAMPLED_AT + 25_000)
+            earliest = self.record(SAMPLED_AT)
+            snapshot.write_text(json.dumps(latest), encoding="utf-8")
+            self.assertEqual(append_snapshot(snapshot, out)["samples"], 1)
+            snapshot.write_text(json.dumps(earliest), encoding="utf-8")
+            second = append_snapshot(snapshot, out)
+            self.assertEqual(second["samples"], 1)
+            self.assertEqual(second["observation_coverage"]["observed_five_minute_slots"], 1)
+            day = next((out / "data").glob("*.jsonl"))
+            self.assertEqual(read_day(day)[0]["started_at_ms"], SAMPLED_AT)
+            # A later duplicate does not replace earlier captured data.
+            snapshot.write_text(json.dumps(latest), encoding="utf-8")
+            self.assertEqual(append_snapshot(snapshot, out)["samples"], 1)
+            self.assertEqual(read_day(day)[0]["started_at_ms"], SAMPLED_AT)
+
+    def test_missing_slot_is_reported_not_backfilled(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            snapshot = root / "sample.json"
+            out = root / "branch"
+            for at in (SAMPLED_AT, SAMPLED_AT + 2 * FIVE):
+                snapshot.write_text(json.dumps(self.record(at)), encoding="utf-8")
+                manifest = append_snapshot(snapshot, out)
+            coverage = manifest["observation_coverage"]
+            self.assertEqual(coverage["expected_five_minute_slots"], 3)
+            self.assertEqual(coverage["missing_five_minute_slots"], 1)
+            self.assertEqual(coverage["observed_pct"], 66.67)
+            self.assertIn("66.67% coverage", (out / "README.md").read_text())
 
     def test_delayed_snapshot_is_kept_without_misleading_candidates(self):
         with TemporaryDirectory() as directory:

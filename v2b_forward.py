@@ -332,13 +332,17 @@ def summarize(record):
         book = sample.get("order_book") or {}
         trades = sample.get("recent_trades") or {}
         lag = sample.get("observation_lag_ms")
+        lag_text = f"{lag / 1000:.1f}s" if lag is not None else "N/A"
+        spread = book.get("spread_bps")
+        spread_text = f"{spread:.2f} bps" if spread is not None else "N/A"
+        imbalance = book.get("depth_imbalance")
+        imbalance_text = f"{imbalance:.3f}" if imbalance is not None else "N/A"
+        price_text = price["action"] if price else "NO_DATA"
+        full_text = gated["action"] if gated else sample.get("observation_status", "NO_DATA")
         lines.append(
-            f'| {symbol} | {price["action"] if price else "NO_DATA"} '
-            f'| {gated["action"] if gated else sample.get("observation_status", "NO_DATA")} '
-            f'| {f"{lag/1000:.1f}s" if lag is not None else "N/A"} '
-            f'| {f"{book["spread_bps"]:.2f} bps" if book.get("spread_bps") is not None else "N/A"} '
-            f'| {f"{book["depth_imbalance"]:.3f}" if book.get("depth_imbalance") is not None else "N/A"} '
-            f'| {trades.get("sampled_trades", "N/A")} |'
+            f"| {symbol} | {price_text} | {full_text} | "
+            f"{lag_text} | {spread_text} | {imbalance_text} | "
+            f'{trades.get("sampled_trades", "N/A")} |'
         )
     lines += [
         "", "**Book time is client REST response receipt, not an exchange event timestamp.**",

@@ -81,10 +81,15 @@ class ForwardSnapshotTests(unittest.TestCase):
     def test_bad_or_incomplete_15m_exchange_history_is_not_synthesized(self):
         with self.assertRaisesRegex(ValueError, "abnormal"):
             load_closed_four_timeframes(MarketSession(malformed=True), "BTCUSDT", EVAL)
+        class MissingOneBar(MarketSession):
+            def get(self, url, params, timeout):
+                response = super().get(url, params, timeout)
+                if url.endswith("/klines"):
+                    response.payload = response.payload[:-1]
+                return response
         with self.assertRaisesRegex(ValueError, "incomplete"):
-            fetch_closed_candles(MarketSession(), "BTCUSDT", "15m",
+            fetch_closed_candles(MissingOneBar(), "BTCUSDT", "15m",
                                  EVAL - 4*FIFTEEN, EVAL, FIFTEEN)
-            # Valid request must not raise; separate malformed case above.
 
     def test_depth_has_receipt_time_not_fictitious_exchange_event_time(self):
         book, raw = depth_snapshot(MarketSession(), "BTCUSDT",

@@ -1,0 +1,79 @@
+name: PulseCrypto V2-B Public Liquidity Research
+
+on:
+  # 1 minute after each 5m boundary; GitHub scheduling can run late or skip.
+  schedule:
+    - cron: '1-59/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # Only to isolated v2b-observations research branch.
+
+concurrency:
+  group: pulsecrypto-v2b-public-research
+  cancel-in-progress: false
+
+jobs:
+  public-spot-shadow-observation:
+    if: github.ref == 'refs/heads/main'
+    name: Collect PUBLIC spot depth and closed price-action observations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout research source (no production state or secret keys)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install public HTTP dependency
+        run: python -m pip install requests
+      - name: Check all offline unit tests before public collection
+        run: python -m unittest discover -s tests -v
+      - name: Observe closed BTC ETH SOL candles, public depth and recent trades
+        shell: bash
+        run: |
+          set -euo pipefail
+          python v2b_forward.py \
+            --out "$RUNNER_TEMP/v2b-observation.json" \
+            --markdown "$RUNNER_TEMP/v2b-summary.md"
+          cat "$RUNNER_TEMP/v2b-summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Archive original research snapshot as GitHub Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulsecrypto-v2b-public-snapshot-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/v2b-observation.json
+            ${{ runner.temp }}/v2b-summary.md
+          retention-days: 7
+          if-no-files-found: error
+      - name: Persist observation ONLY to isolated research branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          store="$RUNNER_TEMP/v2b-observations"
+          if git ls-remote --quiet --exit-code --heads origin v2b-observations >/dev/null; then
+            git fetch --no-tags origin "refs/heads/v2b-observations:refs/remotes/origin/v2b-observations"
+            git worktree add --detach "$store" origin/v2b-observations
+          else
+            git worktree add --detach "$store" HEAD
+            git -C "$store" checkout --orphan v2b-observations
+            git -C "$store" rm -r -f --ignore-unmatch .
+          fi
+          python v2b_archive.py append \
+            --snapshot "$RUNNER_TEMP/v2b-observation.json" \
+            --directory "$store"
+          git -C "$store" config user.name "github-actions[bot]"
+          git -C "$store" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$store" add -A
+          if git -C "$store" diff --cached --quiet; then
+            echo "Duplicate observation: isolated research branch unchanged"
+          else
+            git -C "$store" commit -m "Store read-only public V2-B liquidity observation"
+            git -C "$store" push origin HEAD:refs/heads/v2b-observations
+          fi
+          printf '\n---\n\n' >> "$GITHUB_STEP_SUMMARY"
+          cat "$store/README.md" >> "$GITHUB_STEP_SUMMARY"

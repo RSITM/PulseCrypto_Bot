@@ -321,6 +321,7 @@ def summarize(record):
         "no Telegram or Turso writes.**",
         "",
         f'**Started:** {record["started_at_utc"]}',
+        f'**Trigger:** {record.get("trigger_kind", "unknown")}',
         f'**Last fully closed 5M boundary:** {record["signal_closed_at_utc"]}',
         "",
         "| Market | Price-only setup | Full depth-gated V2 | Sample lag | Spot spread | Depth imbalance | Recent trade sample |",
@@ -360,8 +361,11 @@ def main():
         description="Read-only public BTC/ETH/SOL depth and 5m forward sampler")
     parser.add_argument("--out", required=True)
     parser.add_argument("--markdown")
+    parser.add_argument("--trigger", choices=("schedule", "workflow_dispatch", "local"),
+                        default="local")
     args = parser.parse_args()
     result = collect_once()
+    result["trigger_kind"] = args.trigger
     for output in (args.out, args.markdown):
         if output:
             Path(output).parent.mkdir(parents=True, exist_ok=True)

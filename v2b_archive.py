@@ -15,6 +15,7 @@ SYMBOLS = ("BTCUSDT", "ETHUSDT", "SOLUSDT")
 RETENTION_DAYS = 30
 MAX_SNAPSHOT_BYTES = 200_000
 MAX_JSONL_RECORDS_PER_DAY = 600
+FIVE = 300_000
 
 
 def date_from_ms(milliseconds):
@@ -97,8 +98,32 @@ def summarize(records):
     } for sym in SYMBOLS}
 
 
+def observation_coverage(rows):
+    """Coverage of distinct closed five-minute UTC slots in the archive.
+
+    Missing market observations are NOT reconstructed from later prices.
+    """
+    if not rows:
+        return {
+            "expected_five_minute_slots": 0,
+            "observed_five_minute_slots": 0,
+            "missing_five_minute_slots": 0,
+            "observed_pct": None,
+        }
+    closes = {row["signal_closed_at_ms"] for row in rows}
+    expected = (max(closes) - min(closes)) // FIVE + 1
+    observed = len(closes)
+    return {
+        "expected_five_minute_slots": expected,
+        "observed_five_minute_slots": observed,
+        "missing_five_minute_slots": expected - observed,
+        "observed_pct": round(100 * observed / expected, 2),
+    }
+
+
 def write_report(directory, rows):
     stats = summarize(rows)
+    coverage = observation_coverage(rows)
     first = rows[0]["started_at_utc"] if rows else "N/A"
     last = rows[-1]["started_at_utc"] if rows else "N/A"
     lines = [
@@ -109,6 +134,10 @@ def write_report(directory, rows):
         f"Snapshots retained on branch: {len(rows)}",
         f"First observation: {first}",
         f"Latest observation: {last}",
+        f"5-minute slots captured: {coverage['observed_five_minute_slots']} "
+        f"of {coverage['expected_five_minute_slots']} expected "
+        f"({coverage['observed_pct']}% coverage); "
+        f"missing: {coverage['missing_five_minute_slots']}",
         "",
         "| Symbol | Samples | On-time | Delayed | Candle history verified | Depth unavailable | Price-only candidates | Depth-gated candidates | Mean on-time spread (bps) |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -139,6 +168,7 @@ def write_report(directory, rows):
         "format_version": 1, "retention_days": RETENTION_DAYS,
         "first_observation": first, "last_observation": last,
         "samples": len(rows), "by_symbol": stats,
+        "observation_coverage": coverage,
         "note": "No trading; public Binance.US forward observations only"
     }
     (directory / "manifest.json").write_text(
@@ -160,10 +190,22 @@ def append_snapshot(snapshot, directory):
     filename = daily_dir / f"{day.isoformat()}.jsonl"
 
     existing = read_day(filename)
-    if not any(row["started_at_ms"] == started for row in existing):
+    # GitHub schedule and external workflow_dispatch can observe the same
+    # CLOSED 5m candle. Keep the earliest capture for each time slot.
+    # Different-start-time runs never inflate trade-candidate counts.
+    candle_close = observation["signal_closed_at_ms"]
+    match = next((i for i, old in enumerate(existing)
+                  if old["signal_closed_at_ms"] == candle_close), None)
+    changed = False
+    if match is None:
         if len(existing) >= MAX_JSONL_RECORDS_PER_DAY:
             raise ValueError("Too many same-day runs; refusing unbounded archive")
         existing.append(observation)
+        changed = True
+    elif started < existing[match]["started_at_ms"]:
+        existing[match] = observation
+        changed = True
+    if changed:
         existing.sort(key=lambda row: row["started_at_ms"])
         filename.write_text(
             "".join(json.dumps(row, separators=(",", ":"), allow_nan=False) + "\n"

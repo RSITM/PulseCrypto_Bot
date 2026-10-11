@@ -45,7 +45,60 @@ recorded.
 
 The GitHub workflow **PulseCrypto V2-B Public Liquidity Research** attempts
 one observation five minutes apart, nominally at UTC minutes :01, :06,
-:11, :16, etc., and also supports manual execution.
+:11, :16, etc., and also supports manual execution. GitHub native schedule
+is a **best-effort fallback**, not a guaranteed five-minute time series.
+A change to the cron specification can reactivate a stopped schedule but
+cannot prevent GitHub's job queue from dropping scheduled triggers.
+
+### More reliable external five-minute trigger (manual account setup required)
+
+The already-configured `workflow_dispatch` event also accepts a POST from
+cron-job.org, which can be configured similarly to the existing V1 dispatcher.
+**No cron-job.org job is created by this repository**: the account owner must
+configure the new job in their cron-job.org dashboard.
+
+1. In GitHub Settings > Developer settings > Personal access tokens >
+   **Fine-grained tokens**, create a short-lived token restricted to
+   `RSITM/PulseCrypto_Bot`, with ONLY **Actions: Read and write** plus the
+   implicit metadata permission. Do not paste the token into GitHub code,
+   tickets, ChatGPT, a URL or workflow logs.
+2. In cron-job.org, add a NEW job titled
+   `PulseCrypto V2-B public research`. Do NOT edit V1's cron job.
+3. Target URL:
+   `https://api.github.com/repos/RSITM/PulseCrypto_Bot/actions/workflows/v2b-forward-research.yml/dispatches`
+4. Request method: **POST**. Body (JSON):
+   `{"ref":"main"}`
+5. Request headers: `Accept: application/vnd.github+json`,
+   `Content-Type: application/json`, and
+   `Authorization: Bearer <YOUR_FINE_GRAINED_PAT>`.
+   Set the private bearer token in the cron-job.org header field only.
+   Disable saving HTTP response bodies if possible.
+6. Choose timezone **UTC**, schedule the exact minutes
+   `:01, :06, :11, :16, :21, :26, :31, :36, :41, :46, :51, :56`
+   every hour, every day. This gives roughly a minute for the preceding
+   closed five-minute candle to settle. Enable failure alerts if desired.
+7. Verify the cron-job.org result is a success response and check
+   GitHub Actions V2-B runs whose trigger is `workflow_dispatch`.
+   The on-time receipt status and archive coverage are the source of truth.
+
+When both GitHub fallback scheduling and the external dispatcher fire,
+`v2b_archive.py` retains a **single, earliest-captured observation** per
+closed five-minute UTC candle. It never counts two dispatches of the same
+candle as two separate market opportunities. The dashboard displays
+**expected, observed and missing five-minute slots**, percentage coverage,
+and the source of the retained triggers. Missing observations are NOT filled
+with imagined historical order-book data.
+
+The external service and GitHub runners can themselves delay; the 150-second
+on-time filter still applies. PAT tokens grant workflow-dispatch capability,
+so keep one-token/one-repo scope, use an expiration date, and rotate if
+exposed. GitHub workflow logs record `GITHUB_EVENT_NAME` and GitHub run ID,
+not the bearer token. For POST workflow dispatch, GitHub officially requires
+**Actions: write** permission for fine-grained tokens.
+
+Current setup is STILL safe without this external dispatcher; however, its
+built-in GitHub scheduler alone has demonstrated sparse execution.
+
 
 GitHub Actions scheduling is **best effort**. Jobs can run late or be
 skipped; their own on-time/delayed counts in the report matter more than

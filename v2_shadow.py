@@ -184,12 +184,15 @@ def assess_depth(book, as_of_ms, intended_notional_usd,
                        spread, vwap, impact, depth)
 
 
-def evaluate_v2(symbol, histories, as_of_ms, order_book=None, intended_notional_usd=50.0):
+def evaluate_v2(symbol, histories, as_of_ms, order_book=None, intended_notional_usd=50.0, *, observed_at_ms=None):
     """Evaluate a potential setup; no trading or state mutation.
 
     Bias: 4H + 1H trend; setup: 15M EMA20 pullback / recovery;
     trigger: 5M close breaks the previous three bar highs with volume.
     Execution: fresh, plausible order book + after-cost reward/risk.
+    observed_at_ms: actual REST capture time, when different from the 5M
+    close; depth freshness is evaluated at this capture time. This remains
+    a CANDIDATE only, never a real or simulated trade.
     """
     if symbol not in SYMBOLS:
         raise ValueError("Unsupported paper market")
@@ -226,7 +229,20 @@ def evaluate_v2(symbol, histories, as_of_ms, order_book=None, intended_notional_
     if five[-1]["close"] <= five[-2]["close"]:
         return wait("5M close lacks upward momentum", bias, setup)
 
-    depth = assess_depth(order_book, as_of_ms, intended_notional_usd)
+    # Closed candles refer to as_of_ms, but a REST book is captured AFTER
+    # that bar's close. Compare book freshness at the actual observation time,
+    # never pretend its snapshot was already available at the candle close.
+    if observed_at_ms is None:
+        # Existing standalone behavior preserved for pre-timestamped synthetic
+        # book fixtures and existing V2 unit tests.
+        depth_clock = as_of_ms
+    else:
+        if (type(observed_at_ms) is not int
+                or observed_at_ms < as_of_ms
+                or observed_at_ms - as_of_ms > 150_000):
+            return wait("Forward book captured too late or before candle close", bias, setup)
+        depth_clock = observed_at_ms
+    depth = assess_depth(order_book, depth_clock, intended_notional_usd)
     if not depth.ok:
         return wait(depth.reason, bias, setup, depth)
 

@@ -215,6 +215,21 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(append_snapshot(snapshot, out)["samples"], 1)
             self.assertEqual(read_day(day)[0]["started_at_ms"], SAMPLED_AT)
 
+    def test_trigger_source_summary_and_unknown_source_rejected(self):
+        data = self.record()
+        data["trigger_kind"] = "schedule"
+        self.assertEqual(validate_observation(data), data["started_at_ms"])
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            observation = root / "obs.json"
+            observation.write_text(json.dumps(data), encoding="utf-8")
+            report = append_snapshot(observation, root / "branch")
+            self.assertEqual(report["trigger_sources"], {"schedule": 1})
+            self.assertIn("schedule=1", (root / "branch" / "README.md").read_text())
+        data["trigger_kind"] = "incorrect"
+        with self.assertRaisesRegex(ValueError, "trigger label"):
+            validate_observation(data)
+
     def test_missing_slot_is_reported_not_backfilled(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

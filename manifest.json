@@ -2,29 +2,29 @@
   "format_version": 1,
   "retention_days": 30,
   "first_observation": "2026-10-11T08:30:20.849000+00:00",
-  "last_observation": "2026-10-11T14:56:03.937000+00:00",
-  "samples": 2,
+  "last_observation": "2026-10-11T19:21:59.443000+00:00",
+  "samples": 3,
   "by_symbol": {
     "BTCUSDT": {
-      "observations": 2,
-      "verified_candles": 2,
-      "on_time": 2,
-      "book_depth_pass": 2,
-      "mean_on_time_spread_bps": 0.0475
+      "observations": 3,
+      "verified_candles": 3,
+      "on_time": 3,
+      "book_depth_pass": 3,
+      "mean_on_time_spread_bps": 0.0416
     },
     "ETHUSDT": {
-      "observations": 2,
-      "verified_candles": 2,
-      "on_time": 2,
-      "book_depth_pass": 2,
-      "mean_on_time_spread_bps": 0.1997
+      "observations": 3,
+      "verified_candles": 3,
+      "on_time": 3,
+      "book_depth_pass": 3,
+      "mean_on_time_spread_bps": 0.2514
     },
     "SOLUSDT": {
-      "observations": 2,
-      "verified_candles": 2,
-      "on_time": 2,
-      "book_depth_pass": 2,
-      "mean_on_time_spread_bps": 1.3702
+      "observations": 3,
+      "verified_candles": 3,
+      "on_time": 3,
+      "book_depth_pass": 3,
+      "mean_on_time_spread_bps": 1.2127
     }
   },
   "note": "No trading; public Binance.US forward observations only"

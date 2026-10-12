@@ -81,7 +81,7 @@ class PublicLogicTests(unittest.TestCase):
         with patch("tjr_ict_shadow.known_liquidity", level):
             start = scanner.on_closed_candle("BTCUSDT", five, h1, h4, ASOF)
             self.assertEqual(start.action, "SWEEP")
-            next5 = five + [raw(ASOF, open_price=100.6, high=103.4,
+            next5 = five + [raw(ASOF, open_price=101.6, high=103.4,
                                low=101.2, close=103.0)]
             decision = scanner.on_closed_candle("BTCUSDT", next5, h1, h4, ASOF + FIVE)
             self.assertEqual(decision.action, "RESEARCH_LIMIT_ORDER")
@@ -105,7 +105,7 @@ class PublicLogicTests(unittest.TestCase):
                 with patch("tjr_ict_shadow.known_liquidity", level):
                     self.assertEqual(scanner.on_closed_candle(
                         "BTCUSDT", five, h1, h4, ASOF).action, "SWEEP")
-                    next5 = five + [raw(ASOF, open_price=100.6, high=103.4,
+                    next5 = five + [raw(ASOF, open_price=101.6, high=103.4,
                                         low=101.2, close=103.0)]
                     decision = scanner.on_closed_candle(
                         "BTCUSDT", next5, h1, h4, ASOF + FIVE)
@@ -119,7 +119,7 @@ class PublicLogicTests(unittest.TestCase):
         with patch("tjr_ict_shadow.known_liquidity", level):
             self.assertEqual(scanner.on_closed_candle(
                 "BTCUSDT", five, h1, h4, ASOF).action, "SWEEP")
-            next5 = five + [raw(ASOF, open_price=100.6, high=103.4,
+            next5 = five + [raw(ASOF, open_price=101.6, high=103.4,
                                 low=101.2, close=103.0)]
             result = scanner.on_closed_candle(
                 "BTCUSDT", next5, h1, h4, ASOF + FIVE)

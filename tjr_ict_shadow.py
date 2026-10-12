@@ -32,7 +32,7 @@ MIN_AFTER_COST_TARGET_PCT = .002
 @dataclass(frozen=True)
 class TJRVariant:
     name: str
-    zone_kind: str                # FVG, ORDER_BLOCK, EQUILIBRIUM, or FVG_OR_OB
+    zone_kind: str                # FVG, ORDER_BLOCK, EQUILIBRIUM, FVG_OR_OB, FVG_OR_OB_PLUS_EQ
     session: str                  # NY or ALL
     bias: str                     # CONTEXT, ONE_HOUR, or FOUR_HOUR_AND_ONE_HOUR
     min_rr: float = MIN_RR
@@ -41,9 +41,11 @@ VARIANTS = (
     TJRVariant("PUBLIC_NY_FVG", "FVG", "NY", "CONTEXT"),
     TJRVariant("PUBLIC_NY_ORDER_BLOCK", "ORDER_BLOCK", "NY", "CONTEXT"),
     TJRVariant("PUBLIC_NY_EQUILIBRIUM", "EQUILIBRIUM", "NY", "CONTEXT"),
+    TJRVariant("PUBLIC_NY_FVG_OR_OB_WITH_EQ", "FVG_OR_OB_PLUS_EQ", "NY", "CONTEXT"),
     TJRVariant("CRYPTO_24H_FVG", "FVG", "ALL", "ONE_HOUR"),
     TJRVariant("CRYPTO_24H_ORDER_BLOCK", "ORDER_BLOCK", "ALL", "ONE_HOUR"),
     TJRVariant("CRYPTO_24H_FVG_OR_OB", "FVG_OR_OB", "ALL", "ONE_HOUR"),
+    TJRVariant("CRYPTO_24H_STRICT_4H_1H_FVG", "FVG", "ALL", "FOUR_HOUR_AND_ONE_HOUR"),
 )
 VARIANT_BY_NAME = {x.name: x for x in VARIANTS}
 
@@ -317,13 +319,14 @@ class TJRScanner:
         if current["stage"] != "MSS":
             return decision("SWEEP", "Awaiting displacement and structure break", current)
         side = current["side"]
-        if self.variant.zone_kind in ("FVG", "FVG_OR_OB"):
+        if self.variant.zone_kind in ("FVG", "FVG_OR_OB", "FVG_OR_OB_PLUS_EQ"):
             zone = fair_value_gap(five, side, atr5)
             zone_kind = "FVG"
         else:
             zone = None
             zone_kind = "NONE"
-        if zone is None and self.variant.zone_kind in ("ORDER_BLOCK", "FVG_OR_OB"):
+        if zone is None and self.variant.zone_kind in (
+                "ORDER_BLOCK", "FVG_OR_OB", "FVG_OR_OB_PLUS_EQ"):
             zone = order_block(five, side, current["at"], current["mss_at"])
             zone_kind = "ORDER_BLOCK"
         if self.variant.zone_kind == "EQUILIBRIUM":
@@ -335,6 +338,22 @@ class TJRScanner:
             return decision("SHIFT", "MSS formed; waiting for matching FVG/order block", current)
 
         lower, upper = zone
+        if self.variant.zone_kind == "FVG_OR_OB_PLUS_EQ":
+            # Public TJR Day-30 extra confluence: the retracement zone should
+            # lie at least partly within the 50% discount/premium of the
+            # observed sweep-to-displacement leg. No future swing endpoints.
+            middle = (current["extreme"] + current["mss_extreme"]) / 2
+            if side == "LONG":
+                if lower > middle:
+                    return decision("WAIT", "FVG/OB lies outside EQ discount", current)
+                upper = min(upper, middle)
+            else:
+                if upper < middle:
+                    return decision("WAIT", "FVG/OB lies outside EQ premium", current)
+                lower = max(lower, middle)
+            if lower > upper:
+                return decision("WAIT", "No FVG/OB and EQ zone overlap", current)
+            zone_kind += "_WITH_EQ"
         entry = (lower + upper) / 2
         sweep_extreme = current["extreme"]
         stop = sweep_extreme - .1 * atr5 if side == "LONG" else sweep_extreme + .1 * atr5

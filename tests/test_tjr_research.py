@@ -36,7 +36,7 @@ def level(*_args, **_kwargs):
 
 class PublicLogicTests(unittest.TestCase):
     def test_variants_are_stable_and_research_only(self):
-        self.assertEqual(len(VARIANTS), 6)
+        self.assertEqual(len(VARIANTS), 8)
         self.assertEqual(len(set(x.name for x in VARIANTS)), len(VARIANTS))
         self.assertEqual(VARIANT_BY_NAME["CRYPTO_24H_FVG"].session, "ALL")
         self.assertEqual(VARIANT_BY_NAME["PUBLIC_NY_FVG"].session, "NY")
@@ -111,6 +111,26 @@ class PublicLogicTests(unittest.TestCase):
                         "BTCUSDT", next5, h1, h4, ASOF + FIVE)
                 self.assertEqual(decision.action, "RESEARCH_LIMIT_ORDER")
                 self.assertEqual(decision.zone_kind, wanted)
+
+    def test_full_tjr_equilibrium_confluence_and_strict_crypto_variant(self):
+        five, h1, h4 = frames()
+        five[-1].update(open=100.4, low=98.6, high=100.7, close=100.)
+        scanner = TJRScanner(VARIANT_BY_NAME["PUBLIC_NY_FVG_OR_OB_WITH_EQ"])
+        with patch("tjr_ict_shadow.known_liquidity", level):
+            self.assertEqual(scanner.on_closed_candle(
+                "BTCUSDT", five, h1, h4, ASOF).action, "SWEEP")
+            next5 = five + [raw(ASOF, open_price=100.6, high=103.4,
+                                low=101.2, close=103.0)]
+            result = scanner.on_closed_candle(
+                "BTCUSDT", next5, h1, h4, ASOF + FIVE)
+            self.assertEqual(result.action, "RESEARCH_LIMIT_ORDER")
+            self.assertEqual(result.zone_kind, "FVG_WITH_EQ")
+            self.assertLessEqual(result.entry, (98.6 + 103.4) / 2)
+        strict = TJRScanner(VARIANT_BY_NAME["CRYPTO_24H_STRICT_4H_1H_FVG"])
+        with patch("tjr_ict_shadow.known_liquidity", level):
+            rejected = strict.on_closed_candle("BTCUSDT", five, h1, h4, ASOF)
+            self.assertEqual(rejected.action, "WAIT")
+            self.assertIn("bias", rejected.reason)
 
     def test_missing_or_future_candle_fails_closed(self):
         five, h1, h4 = frames()

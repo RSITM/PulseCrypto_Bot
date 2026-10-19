@@ -4,15 +4,15 @@
     "BTCUSDT": {
       "WAIT: 15m trend not bullish": 488,
       "WAIT: Insufficient volatility": 352,
-      "WAIT: 1h trend not bullish": 76
+      "WAIT: 1h trend not bullish": 77
     },
     "ETHUSDT": {
-      "WAIT: 15m trend not bullish": 630,
+      "WAIT: 15m trend not bullish": 631,
       "WAIT: Insufficient volatility": 209,
       "WAIT: 1h trend not bullish": 77
     },
     "SOLUSDT": {
-      "WAIT: 15m trend not bullish": 707,
+      "WAIT: 15m trend not bullish": 708,
       "WAIT: Insufficient volatility": 119,
       "WAIT: 1h trend not bullish": 90
     }
@@ -20,24 +20,6 @@
   "recent": [
     {
       "symbol": "BTCUSDT",
-      "candle_ms": 1792326600000,
-      "outcome": "WAIT",
-      "reason": "Insufficient volatility"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1792326600000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1792326600000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "BTCUSDT",
       "candle_ms": 1792327500000,
       "outcome": "WAIT",
       "reason": "Insufficient volatility"
@@ -1095,6 +1077,24 @@
     {
       "symbol": "SOLUSDT",
       "candle_ms": 1792379700000,
+      "outcome": "WAIT",
+      "reason": "15m trend not bullish"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1792380600000,
+      "outcome": "WAIT",
+      "reason": "1h trend not bullish"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1792380600000,
+      "outcome": "WAIT",
+      "reason": "15m trend not bullish"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1792380600000,
       "outcome": "WAIT",
       "reason": "15m trend not bullish"
     }

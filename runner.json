@@ -2,13 +2,21 @@
   "runner_version": 1,
   "ledger": {
     "account": {
-      "cash": 281.84114398374504,
+      "cash": 9.917470848719574,
       "daily_loss_fraction": 0.02,
       "daily_realized_pnl": -0.7280005829033098,
       "day_start_equity": 500,
       "fee_rate": 0.0026,
       "max_positions": 2,
       "positions": {
+        "BTCUSDT": {
+          "entry": 84804.66994999998,
+          "entry_fee": 0.7051681130571176,
+          "quantity": 0.0031981553042052537,
+          "stop": 84463.06543705144,
+          "symbol": "BTCUSDT",
+          "target": 85233.71912589711
+        },
         "SOLUSDT": {
           "entry": 108.48837999999998,
           "entry_fee": 0.5638542031983984,
@@ -38,8 +46,8 @@
     "version": 1
   },
   "cursors": {
-    "BTCUSDT": 1792614600000,
-    "ETHUSDT": 1792614600000,
-    "SOLUSDT": 1792614600000
+    "BTCUSDT": 1792615500000,
+    "ETHUSDT": 1792615500000,
+    "SOLUSDT": 1792615500000
   }
 }

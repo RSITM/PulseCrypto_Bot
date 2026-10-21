@@ -6,13 +6,13 @@
       "WAIT: Insufficient volatility": 379,
       "WAIT: 1h trend not bullish": 144,
       "WAIT: Momentum outside entry range": 31,
-      "WAIT: Volume confirmation absent": 11,
+      "WAIT: Volume confirmation absent": 12,
       "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 1,
       "OPEN_POSITION: Position already open": 1,
       "EXITED_THIS_CYCLE: Same-candle reentry disabled": 1
     },
     "ETHUSDT": {
-      "WAIT: 15m trend not bullish": 787,
+      "WAIT: 15m trend not bullish": 788,
       "WAIT: Insufficient volatility": 209,
       "WAIT: 1h trend not bullish": 174
     },
@@ -20,29 +20,11 @@
       "WAIT: 15m trend not bullish": 830,
       "WAIT: Insufficient volatility": 119,
       "WAIT: 1h trend not bullish": 211,
-      "WAIT: Volume confirmation absent": 5,
+      "WAIT: Volume confirmation absent": 6,
       "WAIT: Momentum outside entry range": 5
     }
   },
   "recent": [
-    {
-      "symbol": "BTCUSDT",
-      "candle_ms": 1792558800000,
-      "outcome": "WAIT",
-      "reason": "Insufficient volatility"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1792558800000,
-      "outcome": "WAIT",
-      "reason": "1h trend not bullish"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1792558800000,
-      "outcome": "WAIT",
-      "reason": "1h trend not bullish"
-    },
     {
       "symbol": "BTCUSDT",
       "candle_ms": 1792559700000,
@@ -1102,6 +1084,24 @@
     {
       "symbol": "SOLUSDT",
       "candle_ms": 1792611900000,
+      "outcome": "WAIT",
+      "reason": "Volume confirmation absent"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1792612800000,
+      "outcome": "WAIT",
+      "reason": "Volume confirmation absent"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1792612800000,
+      "outcome": "WAIT",
+      "reason": "15m trend not bullish"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1792612800000,
       "outcome": "WAIT",
       "reason": "Volume confirmation absent"
     }

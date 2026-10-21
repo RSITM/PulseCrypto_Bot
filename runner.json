@@ -2,9 +2,9 @@
   "runner_version": 1,
   "ledger": {
     "account": {
-      "cash": 9.917470848719574,
+      "cash": 224.61328344927122,
       "daily_loss_fraction": 0.02,
-      "daily_realized_pnl": -0.7280005829033098,
+      "daily_realized_pnl": -3.4630434157033103,
       "day_start_equity": 500,
       "fee_rate": 0.0026,
       "max_positions": 2,
@@ -16,14 +16,6 @@
           "stop": 84463.06543705144,
           "symbol": "BTCUSDT",
           "target": 85233.71912589711
-        },
-        "SOLUSDT": {
-          "entry": 108.48837999999998,
-          "entry_fee": 0.5638542031983984,
-          "quantity": 1.9989882900837241,
-          "stop": 107.80009740252544,
-          "symbol": "SOLUSDT",
-          "target": 109.53980519494911
         }
       },
       "risk_fraction": 0.005,
@@ -40,14 +32,24 @@
           "quantity": 0.003499277725479995,
           "reason": "TARGET",
           "symbol": "BTCUSDT"
+        },
+        {
+          "entry": 108.48837999999998,
+          "entry_fee": 0.5638542031983984,
+          "exit": 107.68221000000001,
+          "exit_fee": 0.5596642397848749,
+          "net_pnl": -2.7350428328000005,
+          "quantity": 1.9989882900837241,
+          "reason": "STOP",
+          "symbol": "SOLUSDT"
         }
       ]
     },
     "version": 1
   },
   "cursors": {
-    "BTCUSDT": 1792619100000,
-    "ETHUSDT": 1792619100000,
-    "SOLUSDT": 1792619100000
+    "BTCUSDT": 1792620000000,
+    "ETHUSDT": 1792620000000,
+    "SOLUSDT": 1792620000000
   }
 }

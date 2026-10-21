@@ -5,7 +5,7 @@
       "WAIT: 15m trend not bullish": 600,
       "WAIT: Insufficient volatility": 379,
       "WAIT: 1h trend not bullish": 144,
-      "WAIT: Momentum outside entry range": 29,
+      "WAIT: Momentum outside entry range": 30,
       "WAIT: Volume confirmation absent": 8,
       "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 1,
       "OPEN_POSITION: Position already open": 1,
@@ -14,35 +14,17 @@
     "ETHUSDT": {
       "WAIT: 15m trend not bullish": 782,
       "WAIT: Insufficient volatility": 209,
-      "WAIT: 1h trend not bullish": 172
+      "WAIT: 1h trend not bullish": 173
     },
     "SOLUSDT": {
       "WAIT: 15m trend not bullish": 827,
       "WAIT: Insufficient volatility": 119,
       "WAIT: 1h trend not bullish": 211,
       "WAIT: Volume confirmation absent": 3,
-      "WAIT: Momentum outside entry range": 3
+      "WAIT: Momentum outside entry range": 4
     }
   },
   "recent": [
-    {
-      "symbol": "BTCUSDT",
-      "candle_ms": 1792552500000,
-      "outcome": "WAIT",
-      "reason": "Insufficient volatility"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1792552500000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1792552500000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
     {
       "symbol": "BTCUSDT",
       "candle_ms": 1792553400000,
@@ -1102,6 +1084,24 @@
     {
       "symbol": "SOLUSDT",
       "candle_ms": 1792605600000,
+      "outcome": "WAIT",
+      "reason": "Momentum outside entry range"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1792606500000,
+      "outcome": "WAIT",
+      "reason": "Momentum outside entry range"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1792606500000,
+      "outcome": "WAIT",
+      "reason": "1h trend not bullish"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1792606500000,
       "outcome": "WAIT",
       "reason": "Momentum outside entry range"
     }

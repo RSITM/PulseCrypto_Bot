@@ -7,12 +7,12 @@
       "WAIT: 1h trend not bullish": 144,
       "WAIT: Momentum outside entry range": 31,
       "WAIT: Volume confirmation absent": 14,
-      "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 1,
+      "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 2,
       "OPEN_POSITION: Position already open": 1,
       "EXITED_THIS_CYCLE: Same-candle reentry disabled": 1
     },
     "ETHUSDT": {
-      "WAIT: 15m trend not bullish": 790,
+      "WAIT: 15m trend not bullish": 791,
       "WAIT: Insufficient volatility": 209,
       "WAIT: 1h trend not bullish": 174
     },
@@ -22,28 +22,11 @@
       "WAIT: 1h trend not bullish": 211,
       "WAIT: Volume confirmation absent": 6,
       "WAIT: Momentum outside entry range": 5,
-      "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 1
+      "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 1,
+      "OPEN_POSITION: Position already open": 1
     }
   },
   "recent": [
-    {
-      "symbol": "BTCUSDT",
-      "candle_ms": 1792561500000,
-      "outcome": "WAIT",
-      "reason": "Insufficient volatility"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1792561500000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1792561500000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
     {
       "symbol": "BTCUSDT",
       "candle_ms": 1792562400000,
@@ -1105,6 +1088,24 @@
       "candle_ms": 1792614600000,
       "outcome": "PAPER_BUY",
       "reason": "Bullish 15m/1h trends with momentum and volume"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1792615500000,
+      "outcome": "PAPER_BUY",
+      "reason": "Bullish 15m/1h trends with momentum and volume"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1792615500000,
+      "outcome": "WAIT",
+      "reason": "15m trend not bullish"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1792615500000,
+      "outcome": "OPEN_POSITION",
+      "reason": "Position already open"
     }
   ]
 }

@@ -4,13 +4,13 @@
     "account": {
       "cash": 493.7382621357906,
       "daily_loss_fraction": 0.02,
-      "daily_realized_pnl": -6.261737864209356,
-      "day_start_equity": 500,
+      "daily_realized_pnl": 0.0,
+      "day_start_equity": 493.7382621357906,
       "fee_rate": 0.0026,
       "max_positions": 2,
       "positions": {},
       "risk_fraction": 0.005,
-      "session_day": "2026-10-21",
+      "session_day": "2026-10-22",
       "slippage_rate": 0.001,
       "starting_equity": 500,
       "trades": [
@@ -49,8 +49,8 @@
     "version": 1
   },
   "cursors": {
-    "BTCUSDT": 1792625400000,
-    "ETHUSDT": 1792625400000,
-    "SOLUSDT": 1792625400000
+    "BTCUSDT": 1792626300000,
+    "ETHUSDT": 1792626300000,
+    "SOLUSDT": 1792626300000
   }
 }

@@ -10,7 +10,7 @@
       "max_positions": 2,
       "positions": {},
       "risk_fraction": 0.005,
-      "session_day": "2026-10-25",
+      "session_day": "2026-10-26",
       "slippage_rate": 0.001,
       "starting_equity": 500,
       "trades": [
@@ -49,8 +49,8 @@
     "version": 1
   },
   "cursors": {
-    "BTCUSDT": 1792971000000,
-    "ETHUSDT": 1792971000000,
-    "SOLUSDT": 1792971000000
+    "BTCUSDT": 1792971900000,
+    "ETHUSDT": 1792971900000,
+    "SOLUSDT": 1792971900000
   }
 }

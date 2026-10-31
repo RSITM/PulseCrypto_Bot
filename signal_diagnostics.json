@@ -3,7 +3,7 @@
   "counts": {
     "BTCUSDT": {
       "WAIT: 15m trend not bullish": 1257,
-      "WAIT: Insufficient volatility": 591,
+      "WAIT: Insufficient volatility": 592,
       "WAIT: 1h trend not bullish": 219,
       "WAIT: Momentum outside entry range": 31,
       "WAIT: Volume confirmation absent": 14,
@@ -13,14 +13,14 @@
     },
     "ETHUSDT": {
       "WAIT: 15m trend not bullish": 1606,
-      "WAIT: Insufficient volatility": 268,
+      "WAIT: Insufficient volatility": 269,
       "WAIT: 1h trend not bullish": 247,
       "ENTRY_BLOCKED: SKIP_POSITION_LIMIT": 1,
       "WAIT: Volume confirmation absent": 2
     },
     "SOLUSDT": {
       "WAIT: 15m trend not bullish": 1702,
-      "WAIT: Insufficient volatility": 124,
+      "WAIT: Insufficient volatility": 125,
       "WAIT: 1h trend not bullish": 280,
       "WAIT: Volume confirmation absent": 6,
       "WAIT: Momentum outside entry range": 5,
@@ -32,24 +32,6 @@
   "recent": [
     {
       "symbol": "BTCUSDT",
-      "candle_ms": 1793419200000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1793419200000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1793419200000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "BTCUSDT",
       "candle_ms": 1793420100000,
       "outcome": "WAIT",
       "reason": "15m trend not bullish"
@@ -1107,6 +1089,24 @@
     {
       "symbol": "SOLUSDT",
       "candle_ms": 1793472300000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1793473200000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1793473200000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1793473200000,
       "outcome": "WAIT",
       "reason": "Insufficient volatility"
     }

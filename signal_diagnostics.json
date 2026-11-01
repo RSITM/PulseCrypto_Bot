@@ -3,7 +3,7 @@
   "counts": {
     "BTCUSDT": {
       "WAIT: 15m trend not bullish": 1257,
-      "WAIT: Insufficient volatility": 657,
+      "WAIT: Insufficient volatility": 658,
       "WAIT: 1h trend not bullish": 219,
       "WAIT: Momentum outside entry range": 31,
       "WAIT: Volume confirmation absent": 14,
@@ -13,14 +13,14 @@
     },
     "ETHUSDT": {
       "WAIT: 15m trend not bullish": 1609,
-      "WAIT: Insufficient volatility": 322,
+      "WAIT: Insufficient volatility": 323,
       "WAIT: 1h trend not bullish": 256,
       "ENTRY_BLOCKED: SKIP_POSITION_LIMIT": 1,
       "WAIT: Volume confirmation absent": 2
     },
     "SOLUSDT": {
       "WAIT: 15m trend not bullish": 1747,
-      "WAIT: Insufficient volatility": 145,
+      "WAIT: Insufficient volatility": 146,
       "WAIT: 1h trend not bullish": 280,
       "WAIT: Volume confirmation absent": 6,
       "WAIT: Momentum outside entry range": 5,
@@ -32,24 +32,6 @@
   "recent": [
     {
       "symbol": "BTCUSDT",
-      "candle_ms": 1793478600000,
-      "outcome": "WAIT",
-      "reason": "Insufficient volatility"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1793478600000,
-      "outcome": "WAIT",
-      "reason": "Insufficient volatility"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1793478600000,
-      "outcome": "WAIT",
-      "reason": "Insufficient volatility"
-    },
-    {
-      "symbol": "BTCUSDT",
       "candle_ms": 1793479500000,
       "outcome": "WAIT",
       "reason": "Insufficient volatility"
@@ -1109,6 +1091,24 @@
       "candle_ms": 1793531700000,
       "outcome": "WAIT",
       "reason": "15m trend not bullish"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1793532600000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1793532600000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1793532600000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
     }
   ]
 }

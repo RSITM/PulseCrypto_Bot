@@ -2,13 +2,22 @@
   "runner_version": 1,
   "ledger": {
     "account": {
-      "cash": 493.7382621357906,
+      "cash": 279.72425462326726,
       "daily_loss_fraction": 0.02,
       "daily_realized_pnl": 0.0,
       "day_start_equity": 493.7382621357906,
       "fee_rate": 0.0026,
       "max_positions": 2,
-      "positions": {},
+      "positions": {
+        "ETHUSDT": {
+          "entry": 2437.4149799999996,
+          "entry_fee": 0.5549934365974073,
+          "quantity": 0.08757598350196646,
+          "stop": 2421.5015237510397,
+          "symbol": "ETHUSDT",
+          "target": 2461.9369524979206
+        }
+      },
       "risk_fraction": 0.005,
       "session_day": "2026-11-04",
       "slippage_rate": 0.001,
@@ -49,8 +58,8 @@
     "version": 1
   },
   "cursors": {
-    "BTCUSDT": 1793829600000,
-    "ETHUSDT": 1793829600000,
-    "SOLUSDT": 1793829600000
+    "BTCUSDT": 1793830500000,
+    "ETHUSDT": 1793830500000,
+    "SOLUSDT": 1793830500000
   }
 }

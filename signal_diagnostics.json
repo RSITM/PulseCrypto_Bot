@@ -4,7 +4,7 @@
     "BTCUSDT": {
       "WAIT: 15m trend not bullish": 1456,
       "WAIT: Insufficient volatility": 719,
-      "WAIT: 1h trend not bullish": 299,
+      "WAIT: 1h trend not bullish": 300,
       "WAIT: Momentum outside entry range": 31,
       "WAIT: Volume confirmation absent": 14,
       "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 2,
@@ -21,13 +21,13 @@
       "MISSED_CANDLES: More than one new 15m candle; entry skipped": 2,
       "WAIT: Momentum outside entry range": 11,
       "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 2,
-      "OPEN_POSITION: Position already open": 6,
+      "OPEN_POSITION: Position already open": 7,
       "EXITED_THIS_CYCLE: Same-candle reentry disabled": 1
     },
     "SOLUSDT": {
       "WAIT: 15m trend not bullish": 2053,
       "WAIT: Insufficient volatility": 148,
-      "WAIT: 1h trend not bullish": 312,
+      "WAIT: 1h trend not bullish": 313,
       "WAIT: Volume confirmation absent": 6,
       "WAIT: Momentum outside entry range": 5,
       "PAPER_BUY: Bullish 15m/1h trends with momentum and volume": 1,
@@ -37,24 +37,6 @@
     }
   },
   "recent": [
-    {
-      "symbol": "BTCUSDT",
-      "candle_ms": 1793791800000,
-      "outcome": "WAIT",
-      "reason": "1h trend not bullish"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1793791800000,
-      "outcome": "WAIT",
-      "reason": "1h trend not bullish"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1793791800000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
     {
       "symbol": "BTCUSDT",
       "candle_ms": 1793792700000,
@@ -1114,6 +1096,24 @@
     {
       "symbol": "SOLUSDT",
       "candle_ms": 1793845800000,
+      "outcome": "WAIT",
+      "reason": "1h trend not bullish"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1793846700000,
+      "outcome": "WAIT",
+      "reason": "1h trend not bullish"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1793846700000,
+      "outcome": "OPEN_POSITION",
+      "reason": "Position already open"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1793846700000,
       "outcome": "WAIT",
       "reason": "1h trend not bullish"
     }

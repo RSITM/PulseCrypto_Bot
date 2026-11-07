@@ -3,7 +3,7 @@
   "counts": {
     "BTCUSDT": {
       "WAIT: 15m trend not bullish": 1628,
-      "WAIT: Insufficient volatility": 744,
+      "WAIT: Insufficient volatility": 745,
       "WAIT: 1h trend not bullish": 303,
       "WAIT: Momentum outside entry range": 31,
       "WAIT: Volume confirmation absent": 22,
@@ -14,7 +14,7 @@
     },
     "ETHUSDT": {
       "WAIT: 15m trend not bullish": 1967,
-      "WAIT: Insufficient volatility": 375,
+      "WAIT: Insufficient volatility": 376,
       "WAIT: 1h trend not bullish": 338,
       "ENTRY_BLOCKED: SKIP_POSITION_LIMIT": 1,
       "WAIT: Volume confirmation absent": 26,
@@ -26,7 +26,7 @@
     },
     "SOLUSDT": {
       "WAIT: 15m trend not bullish": 2230,
-      "WAIT: Insufficient volatility": 155,
+      "WAIT: Insufficient volatility": 156,
       "WAIT: 1h trend not bullish": 337,
       "WAIT: Volume confirmation absent": 6,
       "WAIT: Momentum outside entry range": 5,
@@ -39,24 +39,6 @@
   "recent": [
     {
       "symbol": "BTCUSDT",
-      "candle_ms": 1793983500000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "ETHUSDT",
-      "candle_ms": 1793983500000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "SOLUSDT",
-      "candle_ms": 1793983500000,
-      "outcome": "WAIT",
-      "reason": "15m trend not bullish"
-    },
-    {
-      "symbol": "BTCUSDT",
       "candle_ms": 1793984400000,
       "outcome": "WAIT",
       "reason": "15m trend not bullish"
@@ -1114,6 +1096,24 @@
     {
       "symbol": "SOLUSDT",
       "candle_ms": 1794037500000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "candle_ms": 1794038400000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "candle_ms": 1794038400000,
+      "outcome": "WAIT",
+      "reason": "Insufficient volatility"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "candle_ms": 1794038400000,
       "outcome": "WAIT",
       "reason": "Insufficient volatility"
     }

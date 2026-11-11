@@ -2,17 +2,17 @@
 
 **Research-only public exchange market data; zero orders, no portfolio writes.**
 
-Snapshots retained on branch: 8555
+Snapshots retained on branch: 8556
 First observation: 2026-10-13T00:01:24.195000+00:00
-Latest observation: 2026-11-11T18:56:31.476000+00:00
-5-minute slots captured: 8555 of 8580 expected (99.71% coverage); missing: 25
-Trigger sources: schedule=51, workflow_dispatch=8504
+Latest observation: 2026-11-11T19:01:22.897000+00:00
+5-minute slots captured: 8556 of 8581 expected (99.71% coverage); missing: 25
+Trigger sources: schedule=51, workflow_dispatch=8505
 
 | Symbol | Samples | On-time | Delayed | Candle history verified | Depth unavailable | Price-only candidates | Depth-gated candidates | Mean on-time spread (bps) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| BTCUSDT | 8555 | 8551 | 4 | 8555 | 0 | 0 | 0 | 0.047 |
-| ETHUSDT | 8555 | 8551 | 4 | 8555 | 0 | 0 | 0 | 0.3364 |
-| SOLUSDT | 8555 | 8551 | 4 | 8555 | 0 | 0 | 0 | 1.3953 |
+| BTCUSDT | 8556 | 8552 | 4 | 8556 | 0 | 0 | 0 | 0.047 |
+| ETHUSDT | 8556 | 8552 | 4 | 8556 | 0 | 0 | 0 | 0.3363 |
+| SOLUSDT | 8556 | 8552 | 4 | 8556 | 0 | 0 | 0 | 1.3954 |
 
 Order-book metrics are sampled *only when GitHub runs*; resting depth can be spoofed or canceled and is not a guaranteed fill.
 The public last-200-trades REST endpoint is a partial recent sample, not historical tick coverage or verified continuous order flow.

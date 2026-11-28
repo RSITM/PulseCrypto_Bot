@@ -2,42 +2,42 @@
   "format_version": 1,
   "retention_days": 30,
   "first_observation": "2026-10-30T00:01:33.717000+00:00",
-  "last_observation": "2026-11-28T04:06:37.292000+00:00",
-  "samples": 8363,
+  "last_observation": "2026-11-28T04:11:33.576000+00:00",
+  "samples": 8364,
   "by_symbol": {
     "BTCUSDT": {
-      "observations": 8363,
-      "verified_candles": 8363,
-      "on_time": 8356,
-      "book_depth_pass": 8362,
+      "observations": 8364,
+      "verified_candles": 8364,
+      "on_time": 8357,
+      "book_depth_pass": 8363,
       "delayed": 7,
       "mean_on_time_spread_bps": 0.0984
     },
     "ETHUSDT": {
-      "observations": 8363,
-      "verified_candles": 8363,
-      "on_time": 8356,
-      "book_depth_pass": 8359,
+      "observations": 8364,
+      "verified_candles": 8364,
+      "on_time": 8357,
+      "book_depth_pass": 8360,
       "delayed": 7,
       "mean_on_time_spread_bps": 0.4912
     },
     "SOLUSDT": {
-      "observations": 8363,
-      "verified_candles": 8363,
-      "on_time": 8356,
-      "book_depth_pass": 8358,
+      "observations": 8364,
+      "verified_candles": 8364,
+      "on_time": 8357,
+      "book_depth_pass": 8359,
       "delayed": 7,
-      "mean_on_time_spread_bps": 1.775
+      "mean_on_time_spread_bps": 1.7749
     }
   },
   "observation_coverage": {
-    "expected_five_minute_slots": 8402,
-    "observed_five_minute_slots": 8363,
+    "expected_five_minute_slots": 8403,
+    "observed_five_minute_slots": 8364,
     "missing_five_minute_slots": 39,
     "observed_pct": 99.54
   },
   "trigger_sources": {
-    "workflow_dispatch": 8327,
+    "workflow_dispatch": 8328,
     "schedule": 36
   },
   "note": "No trading; public Binance.US forward observations only"
